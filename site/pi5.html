@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi 5 Bootloader & Boot Process — pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+/* ── header ── */
+header{background:var(--surface);border-bottom:2px solid var(--accent);
+  padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+/* ── main content ── */
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;
+  font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+/* ── sources box ── */
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+/* ── footer ── */
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;
+  margin-top:4rem}
+/* ── index cards ── */
+.hero{padding:1rem 0 2rem;text-align:center}
+.hero p{color:var(--muted);margin:.5rem 0}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:1.5rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.5rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1.1rem;margin:0 0 .4rem}
+.card .sub{color:var(--muted);font-size:.9rem}
+.card .date{color:#475569;font-size:.8rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1.1rem;padding:.4rem .9rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.9rem;
+  font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">← All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi 5 Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-02-25 &nbsp;·&nbsp; <a href="pi5-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=373222" target="_blank" rel="noopener">Pi5 Boot Process — Raspberry Pi Forums</a></li>
+      <li><a href="https://deepwiki.com/raspberrypi/firmware/2.1.5-raspberry-pi-5-kernel-(kernel_2712.img)" target="_blank" rel="noopener">kernel_2712.img — DeepWiki</a></li>
+      <li><a href="https://github.com/rsta2/circle/discussions/413" target="_blank" rel="noopener">Supporting Pi 5 — Circle Discussion #413</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=378931" target="_blank" rel="noopener">UART on Pi 5 GPIO 14/15 — Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-5-bootloader-boot-process-community-documentation">Raspberry Pi 5 Bootloader &amp; Boot Process: Community Documentation</h1>
+<blockquote>
+<p><strong>Disclaimer</strong>: This document is community-sourced documentation compiled from official Raspberry Pi forums, GitHub discussions, and wiki pages. Information marked as "community-sourced" reflects the experience of developers in the community and may not be officially documented by the Raspberry Pi Foundation. Readers should verify critical details against official Raspberry Pi documentation where possible.</p>
+</blockquote>
+<hr />
+<h2 id="1-overview-of-the-raspberry-pi-5-boot-sequence-step-by-step-from-power-on-to-kernel">1. Overview of the Raspberry Pi 5 Boot Sequence (Step-by-Step from Power-On to Kernel)</h2>
+<p>The Raspberry Pi 5 introduces a boot architecture that differs in several key respects from its predecessors. While the fundamental stages remain similar — power-on, ROM boot, bootloader execution, then OS loading — the specifics have changed substantially.</p>
+<h3 id="11-high-level-boot-flow">1.1 High-Level Boot Flow</h3>
+<p>Based on community-sourced information, the boot sequence proceeds as follows:</p>
+<ol>
+<li><strong>Power-On / Reset</strong>: The SoC begins execution from the internal ROM.</li>
+<li><strong>ROM Bootloader (First Stage)</strong>: The built-in ROM code performs initial hardware initialization. This stage is fixed and cannot be modified.</li>
+<li><strong>Bootloader (EEPROM)</strong>: The second-stage bootloader resides in the SPI-connected EEPROM. This is upgradeable via <code>rpi-eeprom</code>. This stage handles:
+   - Loading the third-stage bootloader or directly loading <code>kernel_2712.img</code>
+   - Reading <code>config.txt</code> and <code>boot.scr</code> (if present)
+   - Selecting the boot device (SD card, USB, network)</li>
+<li><strong>Boot Partition Files</strong>: The bootloader reads configuration from:
+   - <code>config.txt</code> — primary boot configuration
+   - <code>boot.scr</code> — optional boot script (script.bin replacement)
+   - <code>cmdline.txt</code> — kernel command line</li>
+<li><strong>Kernel Loading</strong>: The bootloader loads the kernel image into memory and transfers control.</li>
+</ol>
+<h3 id="12-boot-devices">1.2 Boot Devices</h3>
+<p>The Raspberry Pi 5 supports boot from:</p>
+<ul>
+<li><strong>microSD card</strong> (primary for most users)</li>
+<li><strong>USB mass storage</strong> (via bootloader selection)</li>
+<li><strong>Network boot</strong> (PXE) — community testing indicates this works, though full support varies</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong>: The bootloader automatically attempts boot devices in a configurable order. The default order can be changed via <code>rpi-eeprom</code> configuration.</p>
+</blockquote>
+<hr />
+<h2 id="2-the-bootloader-eeprom-rpi-eeprom-and-its-role">2. The Bootloader (EEPROM / rpi-eeprom) and Its Role</h2>
+<h3 id="21-eeprom-overview">2.1 EEPROM Overview</h3>
+<p>The Raspberry Pi 5 uses a separate SPI-connected EEPROM chip to store the bootloader, separate from the SoC's internal ROM. This is a key difference from earlier models (especially Pi 3 and earlier) which used NOOBS or relied more heavily on the bootloader embedded in the GPU partition.</p>
+<blockquote>
+<p><strong>Source</strong>: Community knowledge — the EEPROM is visible via <code>rpi-eeprom</code> utility.</p>
+</blockquote>
+<h3 id="22-rpi-eeprom-utility">2.2 rpi-eeprom Utility</h3>
+<p>The <code>rpi-eeprom</code> package provides tools to:</p>
+<ul>
+<li><strong>Update the bootloader firmware</strong>: <code>sudo rpi-eeprom-update -a</code></li>
+<li><strong>View current version</strong>: <code>vcgencmd bootloader_version</code></li>
+<li><strong>Configure boot order and options</strong>: Edit <code>/etc/default/rpi-eeprom-update</code> and related configuration files</li>
+</ul>
+<h3 id="23-configuration-files-read-by-bootloader">2.3 Configuration Files Read by Bootloader</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.txt</code></td>
+<td>Boot-time hardware configuration (device tree overlays, kernel address, firmware options)</td>
+</tr>
+<tr>
+<td><code>boot.scr</code></td>
+<td>Optional boot script processed by the bootloader</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command-line arguments</td>
+</tr>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>Not used on Pi 5 — this file is for earlier Pi models</td>
+</tr>
+</tbody>
+</table>
+<h3 id="24-key-configtxt-options-for-pi-5">2.4 Key config.txt Options for Pi 5</h3>
+<p>Based on community experience with bare-metal development:</p>
+<ul>
+<li><strong><code>kernel_address=0x80000</code></strong> — <strong>Critical</strong> for bare-metal kernels. Without this, the Pi 5 bootloader may load the kernel image to the wrong memory address, causing boot failure. This is documented in the Circle bare-metal framework discussions. (Source: Circle Discussion #413)</li>
+<li><strong><code>arm_64bit=1</code></strong> — Required for 64-bit ARM (AArch64) operation.</li>
+<li><strong><code>device_tree_address</code></strong>, <strong><code>initramfs</code></strong> — Standard options, similar to Pi 4.</li>
+</ul>
+<h3 id="25-bootloader-behavior-differences-from-pi-4">2.5 Bootloader Behavior Differences from Pi 4</h3>
+<p>Community members have noted that the Pi 5 bootloader is more restrictive about certain configuration options. In particular:</p>
+<ul>
+<li>The bootloader performs stricter validation of kernel images.</li>
+<li>Some <code>config.txt</code> options that worked on Pi 4 are ignored or behave differently on Pi 5.</li>
+</ul>
+<blockquote>
+<p><strong>Community-sourced</strong>: These observations come from developers migrating bare-metal code from Pi 4 to Pi 5.</p>
+</blockquote>
+<hr />
+<h2 id="3-kernel_2712img-what-it-is-why-it-exists-how-it-differs-from-kernel8img">3. kernel_2712.img — What It Is, Why It Exists, How It Differs from kernel8.img</h2>
+<h3 id="31-what-is-kernel_2712img">3.1 What is kernel_2712.img?</h3>
+<p><code>kernel_2712.img</code> is the primary kernel image filename used by the Raspberry Pi 5 bootloader. The number <strong>2712</strong> refers to the <strong>Broadcom BCM2712</strong> SoC used in the Raspberry Pi 5.</p>
+<p>This naming convention follows the pattern established for earlier Raspberry Pi models:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>SoC</th>
+<th>Default Kernel Filename</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Pi 3</td>
+<td>BCM2837</td>
+<td><code>kernel8.img</code> (64-bit)</td>
+</tr>
+<tr>
+<td>Pi 4</td>
+<td>BCM2711</td>
+<td><code>kernel8.img</code> (64-bit)</td>
+</tr>
+<tr>
+<td><strong>Pi 5</strong></td>
+<td><strong>BCM2712</strong></td>
+<td><strong><code>kernel_2712.img</code></strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-why-a-new-filename">3.2 Why a New Filename?</h3>
+<p>The bootloader looks for a kernel image matching the SoC identifier. This allows the bootloader to distinguish between kernels for different hardware revisions and avoids accidentally loading a kernel compiled for the wrong SoC (which could cause hardware damage or undefined behavior).</p>
+<h3 id="33-how-it-differs-from-kernel8img">3.3 How It Differs from kernel8.img</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>kernel8.img</th>
+<th>kernel_2712.img</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Target SoC</strong></td>
+<td>BCM2837 (Pi 3), BCM2711 (Pi 4)</td>
+<td>BCM2712 (Pi 5)</td>
+</tr>
+<tr>
+<td><strong>Architecture</strong></td>
+<td>ARMv8-A (AArch64)</td>
+<td>ARMv8-A (AArch64)</td>
+</tr>
+<tr>
+<td><strong>Device Tree</strong></td>
+<td><code>bcm2711.dtb</code> (Pi 4)</td>
+<td><code>bcm2712.dtb</code></td>
+</tr>
+<tr>
+<td><strong>Bootloader detection</strong></td>
+<td>Default fallback if SoC-specific image not found</td>
+<td>SoC-specific name for BCM2712</td>
+</tr>
+<tr>
+<td><strong>Loaded address</strong></td>
+<td>Typically <code>0x80000</code></td>
+<td>Typically <code>0x80000</code> (but see <code>kernel_address</code> below)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-using-alternative-kernel-names">3.4 Using Alternative Kernel Names</h3>
+<p>The bootloader can be configured to load an alternative kernel filename via <code>config.txt</code>:</p>
+<pre><code>kernel=my_custom_kernel.img
+</code></pre>
+<p>However, the SoC-specific naming (<code>kernel_2712.img</code>) is the default and recommended approach.</p>
+<blockquote>
+<p><strong>Community note</strong>: Some bare-metal developers on the Pi 5 have reported that the bootloader does not automatically fall back to <code>kernel8.img</code> if <code>kernel_2712.img</code> is missing. This differs from Pi 4 behavior where <code>kernel8.img</code> served as a universal 64-bit fallback.</p>
+</blockquote>
+<hr />
+<h2 id="4-uart-serial-console-on-gpio-1415-configuration-quirks-differences-from-pi-4">4. UART / Serial Console on GPIO 14/15 — Configuration, Quirks, Differences from Pi 4</h2>
+<h3 id="41-critical-change-default-serial-console-location">4.1 Critical Change: Default Serial Console Location</h3>
+<p><strong>The most significant change in the Raspberry Pi 5 boot process related to UART is that the default console is no longer on GPIO pins 14/15.</strong></p>
+<p>According to community discussion (Circle Discussion #413):</p>
+<ul>
+<li><strong>Raspberry Pi 5</strong>: Default serial console is on the <strong>dedicated UART connector</strong> (referred to as <code>ttyS11</code> in Linux). This is a separate 3-pin JST connector near the GPIO header, intended for the official Raspberry Pi debug cable.</li>
+<li><strong>GPIO pins 14/15</strong> (the traditional UART pins): These are now accessed as <code>ttyS1</code> in Linux, not <code>ttyS0</code> as on earlier models.</li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Circle Discussion #413 — "On the RPi 5 the serial console is by default the dedicated UART connector ('ttyS11')."</p>
+</blockquote>
+<h3 id="42-enabling-uart-on-gpio-1415-ttys1">4.2 Enabling UART on GPIO 14/15 (ttyS1)</h3>
+<p>For users who need to use the traditional GPIO 14/15 UART pins (common in breadboard setups, HATs, and debug configurations), additional configuration is required.</p>
+<h4 id="for-bare-metal-circle-framework">For Bare-Metal / Circle Framework</h4>
+<p>From the Circle bare-metal framework documentation:</p>
+<pre><code class="language-makefile"># In Config.mk
+DEFINE += -DSERIAL_DEVICE_DEFAULT=0
+</code></pre>
+<p>This tells the firmware to use <code>ttyS1</code> (GPIO 14/15) instead of the default <code>ttyS11</code>.</p>
+<h4 id="for-linux-raspberry-pi-os">For Linux / Raspberry Pi OS</h4>
+<p>In <code>config.txt</code>, add:</p>
+<pre><code>enable_uart=1
+dtoverlay=disable-bt
+</code></pre>
+<p>However, note that the device node may now be <code>/dev/ttyS1</code> instead of <code>/dev/ttyS0</code>.</p>
+<h3 id="43-screen-headless-mode">4.3 Screen Headless Mode</h3>
+<p>An important quirk discovered by the community:</p>
+<blockquote>
+<p><strong>Community-sourced</strong>: On the Raspberry Pi 5 (and also Pi 4), if you want to run without an HDMI screen attached, you need to add the following to your <code>Config.mk</code> (for bare-metal frameworks like Circle):</p>
+</blockquote>
+<pre><code>DEFINE += -DSCREEN_HEADLESS
+</code></pre>
+<p>Otherwise, the <code>CScreenDevice</code> instance fails to initialize and the program does not run. This is because the Pi 5 firmware performs stricter HDMI presence detection than earlier models. (Source: Circle Discussion #413)</p>
+<h3 id="44-summary-of-uart-changes">4.4 Summary of UART Changes</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Pi 4 and Earlier</th>
+<th>Pi 5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default console</td>
+<td><code>/dev/ttyS0</code> (GPIO 14/15)</td>
+<td><code>/dev/ttyS11</code> (dedicated connector)</td>
+</tr>
+<tr>
+<td>GPIO UART device</td>
+<td><code>/dev/ttyS0</code></td>
+<td><code>/dev/ttyS1</code></td>
+</tr>
+<tr>
+<td>Configuration</td>
+<td><code>enable_uart=1</code></td>
+<td><code>enable_uart=1</code> + disable BT overlay</td>
+</tr>
+<tr>
+<td>Bare-metal default</td>
+<td>UART on GPIO 14/15</td>
+<td>UART on dedicated debug connector</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes-relevant-for-circle-u-boot-custom-firmware">5. Bare-Metal and OS Bring-Up Notes (Relevant for Circle, U-Boot, Custom Firmware)</h2>
+<p>This section compiles community experience with bare-metal development on the Raspberry Pi 5.</p>
+<h3 id="51-circle-framework-support">5.1 Circle Framework Support</h3>
+<p>The Circle bare-metal C++ framework has official support for Raspberry Pi 5 on the <strong><code>rpi5</code> branch</strong>. Key points:</p>
+<ul>
+<li><strong>Documentation</strong>: See <code>doc/rpi5.txt</code> in the Circle repository.</li>
+<li><strong>Kernel address</strong>: Must set <code>kernel_address=0x80000</code> in <code>config.txt</code>. Without this, the kernel loads to the wrong address. (Source: Circle Discussion #413)</li>
+<li><strong>Serial configuration</strong>: Use <code>DEFINE += -DSERIAL_DEVICE_DEFAULT=0</code> to enable GPIO 14/15 UART.</li>
+<li><strong>Screen headless</strong>: Use <code>DEFINE += -DSCREEN_HEADLESS</code> when no HDMI display is attached.</li>
+<li><strong>Status</strong>: As of early 2024, EMMC/SD card, timer, I2C, and basic serial work. Network and USB require further adoption of the codebase.</li>
+</ul>
+<h3 id="52-observed-if-rasppi-4-code">5.2 Observed #if RASPPI &lt;= 4 Code</h3>
+<p>Community developers have noted that many existing bare-metal libraries and frameworks contain conditional compilation guards like:</p>
+<pre><code class="language-c">#if RASPPI &lt;= 4
+// Pi 4 and earlier only
+#endif
+</code></pre>
+<p>These sections require modification to support the Raspberry Pi 5 (RASPPI = 5). This affects:</p>
+<ul>
+<li>USB stack initialization</li>
+<li>Ethernet/PHY drivers</li>
+<li>Clock and power management</li>
+<li>GPIO pin multiplexing</li>
+</ul>
+<blockquote>
+<p><strong>Community note</strong>: Some functionality (particularly USB and Ethernet) requires updating drivers to work with the BCM2712's different peripheral configuration.</p>
+</blockquote>
+<h3 id="53-network-boot">5.3 Network Boot</h3>
+<p>Network boot (PXE) is reported to work on the Raspberry Pi 5, though official documentation is limited. From the Circle discussion:</p>
+<blockquote>
+<p>"PS: btw, I'm booting over the network - easier workflow for me!" (Source: Circle Discussion #413)</p>
+</blockquote>
+<p>This suggests that network boot is functional, but detailed configuration may vary from Pi 4.</p>
+<h3 id="54-video-hdmi-support">5.4 Video / HDMI Support</h3>
+<p>A significant change in the Pi 5 affects bare-metal developers who rely on the firmware for video output:</p>
+<blockquote>
+<p>"The HDMI screen support in the RPi 5 firmware is not like the support for the earlier models. Many configuration options are missing. Raspberry Pi OS is generating the display output in the Linux kernel now, but Circle still relies on the firmware." (Source: Circle Discussion #413)</p>
+</blockquote>
+<p>This means:</p>
+<ul>
+<li>The firmware no longer provides the same level of display configuration as on Pi 4.</li>
+<li>Some displays that worked on Pi 4 do not work on Pi 5 with bare-metal code.</li>
+<li>Linux-based OSes handle display in-kernel; bare-metal frameworks must work within firmware limitations.</li>
+</ul>
+<hr />
+<h2 id="6-key-differences-from-raspberry-pi-4-boot-process">6. Key Differences from Raspberry Pi 4 Boot Process</h2>
+<p>The following table summarizes the major differences between the Pi 4 and Pi 5 boot processes:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Raspberry Pi 4</th>
+<th>Raspberry Pi 5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SoC</strong></td>
+<td>Broadcom BCM2711</td>
+<td>Broadcom BCM2712</td>
+</tr>
+<tr>
+<td><strong>Default kernel</strong></td>
+<td><code>kernel8.img</code></td>
+<td><code>kernel_2712.img</code></td>
+</tr>
+<tr>
+<td><strong>Bootloader storage</strong></td>
+<td>SPI EEPROM</td>
+<td>SPI EEPROM</td>
+</tr>
+<tr>
+<td><strong>Default serial console</strong></td>
+<td><code>/dev/ttyS0</code> (GPIO 14/15)</td>
+<td><code>/dev/ttyS11</code> (dedicated connector)</td>
+</tr>
+<tr>
+<td><strong>GPIO UART device</strong></td>
+<td><code>/dev/ttyS0</code></td>
+<td><code>/dev/ttyS1</code></td>
+</tr>
+<tr>
+<td><strong>kernel_address config</strong></td>
+<td>Optional, rarely needed</td>
+<td><strong>Required</strong> for bare-metal (<code>0x80000</code>)</td>
+</tr>
+<tr>
+<td><strong>Screen headless mode</strong></td>
+<td>Not typically required</td>
+<td>Required for headless operation</td>
+</tr>
+<tr>
+<td><strong>Firmware video support</strong></td>
+<td>Full configuration via <code>config.txt</code></td>
+<td>Reduced; display handled in kernel (Linux)</td>
+</tr>
+<tr>
+<td><strong>Boot device priority</strong></td>
+<td>SD → USB → Network (configurable)</td>
+<td>Same, but EEPROM config changed</td>
+</tr>
+<tr>
+<td><strong>ARM architecture</strong></td>
+<td>ARMv8-A (Cortex-A72)</td>
+<td>ARMv8-A (Cortex-A76*)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>*The BCM2712 uses ARM Cortex-A76 cores, a newer microarchitecture than the Cortex-A72 used in Pi 4.</p>
+</blockquote>
+<h3 id="61-memory-map-changes">6.1 Memory Map Changes</h3>
+<p>The BCM2712 introduces changes to the peripheral base address and memory layout. Bare-metal developers must use the correct peripheral base address for the new SoC.</p>
+<h3 id="62-pcie-support">6.2 PCIe Support</h3>
+<p>The Raspberry Pi 5 introduces PCIe connectivity (via the RP1 southbridge). This affects boot in that PCIe devices (NVMe, etc.) can be used as boot devices, but this is handled by the bootloader and may require updated firmware.</p>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following areas lack comprehensive official documentation and remain community-sourced or partially understood:</p>
+<h3 id="71-bootloader-configuration-details">7.1 Bootloader Configuration Details</h3>
+<ul>
+<li><strong>Detailed EEPROM configuration options</strong>: The full range of <code>rpi-eeprom</code> configuration parameters is not fully documented publicly.</li>
+<li><strong>Boot order precedence</strong>: Exact boot priority and fallback behavior for different boot devices.</li>
+</ul>
+<h3 id="72-pcie-rp1-boot">7.2 PCIe / RP1 Boot</h3>
+<ul>
+<li><strong>PCIe boot support</strong>: While PCIe boot is available, the exact requirements and limitations (e.g., which NVMe drives are supported) are not fully documented.</li>
+<li><strong>RP1 southbridge</strong>: How the RP1 chip's role in I/O affects boot is not fully explained in public docs.</li>
+</ul>
+<h3 id="73-firmware-video-limitations">7.3 Firmware Video Limitations</h3>
+<ul>
+<li><strong>HDMI firmware capabilities</strong>: The community notes that "many configuration options are missing" but the exact list of supported/unsupported options is not enumerated.</li>
+<li><strong>Display detection behavior</strong>: Why some displays work on Pi 4 but not Pi 5 with bare-metal code is not clearly documented.</li>
+</ul>
+<h3 id="74-uart-connector-pinout">7.4 UART Connector Pinout</h3>
+<ul>
+<li>The location and pinout of the dedicated UART connector (ttyS11) is mentioned in official docs but detailed usage (voltage levels, TTL vs RS232) is not well-covered.</li>
+</ul>
+<h3 id="75-network-boot-details">7.5 Network Boot Details</h3>
+<ul>
+<li><strong>PXE/DHCP configuration</strong>: Specific DHCP vendor class identifiers or boot filenames for Pi 5 network boot.</li>
+<li><strong>Network boot security</strong>: Whether network boot can be disabled or protected (like TPM binding).</li>
+</ul>
+<h3 id="76-bare-metal-development">7.6 Bare-Metal Development</h3>
+<ul>
+<li><strong>Correct peripheral base addresses</strong>: Official documentation for BCM2712 memory-mapped I/O is limited.</li>
+<li><strong>USB/ethernet initialization</strong>: Community developers report having to reverse-engineer or adapt code from Pi 4.</li>
+<li><strong>Clock and power management</strong>: The PMU (Power Management Unit</li>
+</ul>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/">pi-a-day</a>
+</footer>
+</body>
+</html>
