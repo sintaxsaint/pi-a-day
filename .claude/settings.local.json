@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install markdown -q)",
+      "Bash(python main.py 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 --no-push)",
+      "Bash(pip install beautifulsoup4 requests markdown -q)",
+      "Bash(git push -u origin main)",
+      "Bash(git add index.html main.py)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
