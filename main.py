@@ -399,7 +399,6 @@ def git_push(pi_key: str, pi_cfg: dict, date_str: str) -> None:
         f"site/{pi_key}.html",
         f"site/{pi_key}-report.md",
         "site/index.html",
-        f"{pi_key}-bootloader-report.md",
         STATE_FILE,
     ]
     try:
