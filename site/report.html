@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Report a Missing Pi — pi-a-day</title>
+  <style>
+    :root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+    --muted:#94a3b8;--accent:#c84b31;--link:#63b3ed}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,sans-serif;line-height:1.75;font-size:16px}
+    a{color:var(--link);text-decoration:none}
+    a:hover{text-decoration:underline}
+    header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+    header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+    header nav a{color:var(--muted)}
+    .inner{max-width:860px;margin:0 auto}
+    header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+    header p{color:var(--muted)}
+    main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+    h2{color:#fff;font-size:1.3rem;margin:2rem 0 .75rem;
+      border-bottom:1px solid var(--border);padding-bottom:.4rem}
+    p{margin:.75rem 0;color:var(--text)}
+    .pi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+      gap:1rem;margin:1.5rem 0}
+    .pi-card{background:var(--surface);border:1px solid var(--border);
+      border-radius:8px;padding:1rem 1.25rem;display:flex;
+      align-items:center;justify-content:space-between}
+    .pi-card .name{font-weight:600;color:#fff;font-size:.95rem}
+    .pi-card .status{font-size:.8rem;padding:.2rem .55rem;border-radius:999px;font-weight:600}
+    .done{background:#14532d;color:#86efac}
+    .missing{background:#450a0a;color:#fca5a5}
+    .btn{display:inline-block;margin-top:2rem;padding:.65rem 1.4rem;
+      background:var(--accent);color:#fff;border-radius:6px;font-weight:600;font-size:1rem}
+    .btn:hover{opacity:.85;text-decoration:none}
+    .note{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+      padding:1rem 1.25rem;margin:1.5rem 0;color:var(--muted);font-size:.9rem}
+    footer{background:var(--surface);border-top:1px solid var(--border);
+      padding:1.5rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+  </style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">← All Reports</a></nav>
+  <div class="inner">
+    <h1>Report a Missing Pi</h1>
+    <p>See a Raspberry Pi model that doesn't have a bootloader report yet? Let us know.</p>
+  </div>
+</header>
+<main>
+  <h2>Current coverage</h2>
+  <div class="pi-grid">
+    <div class="pi-card"><span class="name">Raspberry Pi 5</span><span class="status done">Done</span></div>
+    <div class="pi-card"><span class="name">Raspberry Pi 4</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Raspberry Pi 3</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Raspberry Pi 2</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Raspberry Pi 1</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Raspberry Pi Zero</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Raspberry Pi Zero 2W</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Compute Module 4</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Compute Module 5</span><span class="status missing">Missing</span></div>
+    <div class="pi-card"><span class="name">Other / Custom</span><span class="status missing">Missing</span></div>
+  </div>
+
+  <div class="note">
+    Reports are generated automatically by scraping community sources and running them through AI.
+    Opening an issue just lets us know which Pi to prioritise next.
+  </div>
+
+  <h2>Open an issue</h2>
+  <p>Click below to open a pre-filled GitHub issue. Just confirm which Pi model is missing and any useful source links you know of.</p>
+
+  <a class="btn" target="_blank" rel="noopener"
+    href="https://github.com/sintaxsaint/pi-a-day/issues/new?title=Missing+report%3A+%5BPi+model+here%5D&body=%23%23+Which+Pi+is+missing%3F%0A%0A%3C%21--%20e.g.%20Raspberry+Pi+4%2C+Pi+Zero+2W%2C+Compute+Module+4%20--%3E%0A%0A%23%23+Useful+sources+%28optional%29%0A%0A%3C%21--%20Any+forum+posts%2C+wiki+pages%2C+or+GitHub+discussions+about+its+boot+process+%3F+Drop+them+here.%20--%3E%0A%0A">
+    Open issue on GitHub
+  </a>
+</main>
+<footer>
+  Built with pi-a-day &nbsp;·&nbsp; AI-generated from community sources
+</footer>
+</body>
+</html>

@@ -150,10 +150,15 @@ INDEX_TEMPLATE = """\
   <div class="card-grid">
 {cards}
   </div>
+  <p style="margin-top:2.5rem;text-align:center">
+    <a href="report.html" style="color:var(--muted);font-size:.9rem">
+      Missing a Pi model? Report it →
+    </a>
+  </p>
 </main>
 <footer>
   Built with pi-a-day &nbsp;·&nbsp; AI-generated from community sources &nbsp;·&nbsp;
-  <a href="https://github.com/rsta2/circle/discussions/413">Contribute</a>
+  <a href="https://github.com/sintaxsaint/pi-a-day">GitHub</a>
 </footer>
 </body>
 </html>
