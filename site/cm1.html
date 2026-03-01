@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Compute Module 1 (BCM2835) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Compute Module 1 (BCM2835) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="cm1-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-boot-modes" target="_blank" rel="noopener">Raspberry Pi Boot Modes - Official Docs</a></li>
+      <li><a href="https://elinux.org/RPi_Software" target="_blank" rel="noopener">RPi Boot Sequence - eLinux Wiki</a></li>
+      <li><a href="https://github.com/raspberrypi/firmware" target="_blank" rel="noopener">raspberrypi/firmware - GitHub (bootcode.bin era)</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=6854" target="_blank" rel="noopener">How the Pi boots - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="compute-module-1-bcm2835-bootloader-boot-process-community-documentation">Compute Module 1 (BCM2835) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Document Version:</strong> 1.0<br />
+<strong>Target Hardware:</strong> Compute Module 1 (CM1), BCM2835 SoC<br />
+<strong>Scope:</strong> Bootloader architecture, firmware components, boot modes, and bring-up considerations  </p>
+<hr />
+<h2 id="1-overview-of-the-bcm2835-boot-sequence">1. Overview of the BCM2835 Boot Sequence</h2>
+<p>The boot sequence on BCM2835 (used in the original Raspberry Pi 1, Pi Zero, and Compute Module 1) follows a well-documented but minimally officially documented path. Unlike newer SoCs, BCM2835 lacks an internal EEPROM bootloader; the entire boot firmware resides on external storage.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Power-On / Reset</strong>
+   - The SoC exits reset and begins executing the <strong>first-stage bootloader</strong> embedded in the <strong>mask ROM</strong> (BootROM) on the silicon.
+   - This BootROM is hardcoded and cannot be modified.</p>
+</li>
+<li>
+<p><strong>First-Stage: BootROM (SD Card Detection)</strong>
+   - The BootROM scans for a valid <strong>SD card</strong> (MMC/SD interface).
+   - It looks for a properly formatted FAT filesystem (typically FAT16 or FAT32 on the boot partition).
+   - Loads <code>bootcode.bin</code> from the SD card into L2 cache/ SRAM.</p>
+</li>
+<li>
+<p><strong>Second-Stage: bootcode.bin</strong>
+   - Enables the SDRAM (RAM initialisation).
+   - Loads <code>start.elf</code> into SDRAM.
+   - At this point, GPU firmware takes over execution. The ARM CPU remains halted until the GPU prepares the environment.</p>
+</li>
+<li>
+<p><strong>Third-Stage: start.elf (GPU Firmware)</strong>
+   - Parses <code>config.txt</code> and <code>cmdline.txt</code>.
+   - Loads the Device Tree Blob (<code>.dtb</code>) or Device Tree Blob for B Plus (<code>.dtb</code>).
+   - Loads <code>kernel.img</code> (or custom kernel specified in <code>config.txt</code>) into memory.
+   - Configures ARM core clock, VPU, and hardware according to <code>config.txt</code> settings.
+   - Releases the ARM CPU from reset — handoff to the operating system kernel.</p>
+</li>
+<li>
+<p><strong>Kernel Handoff</strong>
+   - The ARM CPU begins executing at the entry point of <code>kernel.img</code>.
+   - Boot arguments are passed via Device Tree or ATAGS (legacy).</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> This sequence is documented in community sources and inferred from the firmware binary behavior. The official Raspberry Pi documentation (Raspberry Pi Boot Modes - Official Docs) describes boot modes generically, but the specific internal BootROM behavior is not publicly disclosed by Broadcom.</p>
+</blockquote>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="firmware-components-sd-card-based">Firmware Components (SD Card-Based)</h3>
+<p>Unlike newer Compute Modules (CM3, CM4, CM5), the CM1 has <strong>no on-board EEPROM</strong>. All firmware resides on the SD card boot partition.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>Second-stage bootloader; initializes SDRAM, loads <code>start.elf</code>. GPU firmware.</td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>Main GPU firmware; parses config, loads kernel, sets up hardware.</td>
+</tr>
+<tr>
+<td><code>fixup.dat</code></td>
+<td>Memory fixup table used by <code>start.elf</code> to configure SDRAM.</td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Text-based configuration file for firmware and hardware settings.</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command-line arguments.</td>
+</tr>
+<tr>
+<td><code>kernel.img</code></td>
+<td>Default ARM kernel image.</td>
+</tr>
+<tr>
+<td><code>*.dtb</code></td>
+<td>Device Tree Blob for hardware description.</td>
+</tr>
+</tbody>
+</table>
+<p>These files are hosted in the official GitHub firmware repository (raspberrypi/firmware).</p>
+<h3 id="storage-media">Storage Media</h3>
+<ul>
+<li><strong>Primary:</strong> MicroSD card (full-size SD adapter on CM1 IO board)</li>
+<li><strong>Boot Partition:</strong> FAT16 or FAT32 (required for BootROM to read firmware)</li>
+<li><strong>Root Partition:</strong> Can be ext4, F2FS, or other Linux filesystems</li>
+</ul>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>BCM2835 supports a limited set of boot modes compared to newer SoCs.</p>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>Support Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SD Card</strong></td>
+<td>✅ Supported</td>
+<td>Primary and default boot source. BootROM always attempts SD first.</td>
+</tr>
+<tr>
+<td><strong>USB</strong></td>
+<td>⚠️ Limited</td>
+<td>USB boot is possible but requires additional firmware (e.g., <code>bootcode.bin</code> supports USB mass storage on some Pi models). CM1 can boot from USB if the bootloader on the SD card supports it — but native USB boot (without SD card) is <strong>not</strong> available.</td>
+</tr>
+<tr>
+<td><strong>Network / PXE</strong></td>
+<td>❌ Not supported natively</td>
+<td>No built-in network boot capability in BCM2835. Requires an SD card with network boot files or custom firmware.</td>
+</tr>
+<tr>
+<td><strong>GPIO Boot Mode</strong></td>
+<td>❌ Not available</td>
+<td>This is a feature introduced on BCM2711 (Pi 4). Not present on BCM2835.</td>
+</tr>
+<tr>
+<td><strong>EEPROM</strong></td>
+<td>❌ Not available</td>
+<td>CM1 has no on-board bootloader EEPROM.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Source:</strong> Raspberry Pi Boot Modes - Official Docs confirms SD card is the primary boot mode for older hardware. Community knowledge indicates USB boot is not natively supported on BCM2835 without SD card intervention.</p>
+</blockquote>
+<h3 id="boot-order">Boot Order</h3>
+<p>BCM2835 BootROM default order:
+1. SD card (MMC0)
+2. (No internal fallback to USB or network)</p>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<p>The Compute Module 1 exposes UART pins on the IO board, but there are specific considerations for serial console access.</p>
+<h3 id="default-uart-configuration">Default UART Configuration</h3>
+<ul>
+<li><strong>Primary UART (UART0):</strong> Exposed on GPIO pins 14 (TXD) and 15 (RXD) on the 22-pin IO header.</li>
+<li><strong>Baud Rate:</strong> 115200 bps by default (unless overridden in <code>cmdline.txt</code> or <code>config.txt</code>).</li>
+<li><strong>No automatic console enable:</strong> Unlike newer Pis with <code>enable_uart=1</code> in <code>config.txt</code>, CM1 may require explicit configuration.</li>
+</ul>
+<h3 id="serial-console-configuration">Serial Console Configuration</h3>
+<p>To enable serial console on CM1:</p>
+<p><strong>In <code>config.txt</code>:</strong></p>
+<pre><code>enable_uart=1
+</code></pre>
+<p><strong>In <code>cmdline.txt</code>:</strong></p>
+<pre><code>console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfs=ext4 elevator=deadline fsck.repair=yes rootwait
+</code></pre>
+<h3 id="quirks-and-community-notes">Quirks and Community Notes</h3>
+<ul>
+<li>The CM1 IO board provides a <strong>TTL-level serial header</strong> (3.3V). Do not connect RS-232 directly — use a USB-to-TTL serial adapter.</li>
+<li><strong>Mini-UART vs. PL011:</strong> On BCM2835, the primary UART is the <strong>PL011</strong> (full-featured UART). The mini-UART is available on the VideoCore subsystem but is not typically used for ARM console.</li>
+<li><strong>Bootloader serial output:</strong> During early boot (before <code>start.elf</code> loads), minimal or no serial output is produced. The GPU firmware (<code>start.elf</code>) outputs to serial if configured.</li>
+<li><strong>Dual serial ports:</strong> The Compute Module 1 has two UARTs available on GPIO, but only one is typically routed to the IO board.</li>
+</ul>
+<blockquote>
+<p><strong>Community Note:</strong> Some users have reported that early boot messages from <code>bootcode.bin</code> or the BootROM are not accessible via the standard GPIO UART. This is consistent with the closed-source nature of the GPU firmware.</p>
+</blockquote>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="u-boot">U-Boot</h3>
+<ul>
+<li><strong>Supported:</strong> U-Boot can be used as a bootloader on BCM2835, replacing or supplementing the default <code>kernel.img</code> handoff.</li>
+<li><strong>Build:</strong> Requires a BCM2835-specific defconfig (e.g., <code>rpi_defconfig</code> for original Pi, which applies to CM1).</li>
+<li><strong>Usage:</strong> Place <code>u-boot.bin</code> or <code>u-boot.img</code> as <code>kernel.img</code> (or specify via <code>kernel=</code> in <code>config.txt</code>).</li>
+<li><strong>Limitations:</strong> U-Boot must be built for the ARM1176 (ARM11) CPU core.</li>
+</ul>
+<h3 id="circle-bare-metal-c-framework">Circle (Bare-Metal C++ Framework)</h3>
+<ul>
+<li><strong>Supported:</strong> Circle is a C++ bare-metal framework for Raspberry Pi (including BCM2835).</li>
+<li><strong>Use Case:</strong> Ideal for custom firmware, RTOS-style development, or learning bare-metal programming on CM1.</li>
+<li><strong>Note:</strong> Circle handles SDRAM initialization and provides its own startup code, bypassing <code>start.elf</code> in some configurations.</li>
+</ul>
+<h3 id="custom-firmware-considerations">Custom Firmware Considerations</h3>
+<ul>
+<li><strong>Custom <code>bootcode.bin</code>:</strong> Not feasible — binary-only and signed (community understanding).</li>
+<li><strong>Custom <code>start.elf</code>:</strong> Not publicly documented; binaries are closed-source.</li>
+<li><strong>Custom kernel:</strong> Fully supported; can replace <code>kernel.img</code>.</li>
+<li><strong>Device Tree:</strong> BCM2835 supports both Device Tree and legacy ATAGs. Device Tree is the modern approach.</li>
+</ul>
+<h3 id="sd-card-layout-requirements">SD Card Layout Requirements</h3>
+<p>For successful boot, the SD card must contain:
+- A <strong>FAT partition</strong> (bootfs) marked as <strong>bootable</strong> (partition type 0x0C or 0x0E).
+- Files: <code>bootcode.bin</code>, <code>start.elf</code>, <code>fixup.dat</code>, <code>config.txt</code>, <code>cmdline.txt</code>, <code>kernel.img</code>, <code>*.dtb</code>.</p>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>CM1 (BCM2835)</th>
+<th>CM3 (BCM2837)</th>
+<th>CM4 (BCM2711)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Boot EEPROM</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>BootROM Source</strong></td>
+<td>SD card only</td>
+<td>SD card only</td>
+<td>SD / EEPROM / USB / Network</td>
+</tr>
+<tr>
+<td><strong>USB Boot</strong></td>
+<td>⚠️ Via SD card</td>
+<td>⚠️ Via SD card</td>
+<td>✅ Native</td>
+</tr>
+<tr>
+<td><strong>Network Boot</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅ (PXE)</td>
+</tr>
+<tr>
+<td><strong>GPIO Boot Mode</strong></td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>64-bit Support</strong></td>
+<td>❌</td>
+<td>✅ (ARMv8 in 32-bit mode)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><strong>UEFI/EDK2</strong></td>
+<td>❌</td>
+<td>Limited</td>
+<td>✅ (community)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="why-these-differences-matter">Why These Differences Matter</h3>
+<ul>
+<li><strong>No EEPROM:</strong> CM1 cannot boot without an SD card. This limits its use in embedded or headless deployments where SD card failure is a concern.</li>
+<li><strong>Limited boot media:</strong> No native USB or network boot means deployment flexibility is reduced compared to CM4.</li>
+<li><strong>Older GPU architecture:</strong> The VideoCore IV in BCM2835 is significantly less powerful than the VideoCore VI in BCM2711.</li>
+</ul>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<ol>
+<li>
+<p><strong>BootROM Source Code</strong><br />
+   - The BootROM in BCM2835 is closed and not publicly documented. Its exact behavior (SD card detect timing, error handling) is inferred, not specified.</p>
+</li>
+<li>
+<p><strong>Bootcode.bin Internals</strong><br />
+   - <code>bootcode.bin</code> is binary-only and not open source. The exact sequence of SDRAM initialization is not publicly documented.</p>
+</li>
+<li>
+<p><strong>Secure Boot</strong><br />
+   - BCM2835 has no documented secure boot chain. There is no OTP-based boot verification.</p>
+</li>
+<li>
+<p><strong>Exact Boot Order Behavior</strong><br />
+   - While SD card is known to be first, the precise fallback behavior (if SD fails, does it attempt USB?) is not officially documented for BCM2835.</p>
+</li>
+<li>
+<p><strong>GPU Firmware Configuration</strong><br />
+   - The full range of <code>config.txt</code> options for BCM2835 is documented in the official docs, but the underlying GPU firmware behavior is closed-source. Some undocumented options exist in community repositories.</p>
+</li>
+<li>
+<p><strong>USB Boot Limitations</strong><br />
+   - Whether <code>bootcode.bin</code> on BCM2835 can actually boot from USB mass storage devices (without an SD card) is unclear and likely not supported.</p>
+</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li><strong>Raspberry Pi Boot Modes - Official Docs</strong> — https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-boot-modes</li>
+<li><strong>raspberrypi/firmware GitHub Repository</strong> — https://github.com/raspberrypi/firmware (boot firmware binaries)</li>
+<li><strong>Raspberry Pi Forums</strong> — Community discussions on boot behavior and hardware (note: forum content varies in technical depth)</li>
+<li><strong>Compute Module Hardware Documentation</strong> — Official Compute Module IO board and CM1 specifications</li>
+</ul>
+<hr />
+<p><em>This document is community-maintained. Information is based on publicly available sources, community experimentation, and inference from firmware behavior. For official support, consult Raspberry Pi Ltd. directly.</em></p>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
