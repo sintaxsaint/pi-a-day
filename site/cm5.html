@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Compute Module 5 (BCM2712) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Compute Module 5 (BCM2712) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="cm5-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=373222" target="_blank" rel="noopener">Pi 5 Boot Process - Raspberry Pi Forums</a></li>
+      <li><a href="https://deepwiki.com/raspberrypi/firmware/2.1.5-raspberry-pi-5-kernel-(kernel_2712.img)" target="_blank" rel="noopener">kernel_2712.img - DeepWiki</a></li>
+      <li><a href="https://github.com/rsta2/circle/discussions/413" target="_blank" rel="noopener">Supporting Pi 5 - Circle Discussion #413</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=378931" target="_blank" rel="noopener">UART on Pi 5 GPIO 14/15 - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="compute-module-5-bcm2712-bootloader-boot-process-community-documentation">Compute Module 5 (BCM2712) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Target Hardware:</strong> Compute Module 5 (CM5) — BCM2712 SoC<br />
+<strong>Scope:</strong> Bootloader architecture, firmware storage, boot modes, serial console, and bare-metal bring-up<br />
+<strong>Audience:</strong> Embedded developers, system integrators, and hobbyists working with CM5 hardware  </p>
+<hr />
+<blockquote>
+<p><strong>Note:</strong> This document synthesizes community-contributed information from forums, GitHub discussions, and experimental documentation. Where details are unconfirmed or derived from inference, they are marked as <em>community-sourced</em> or <em>unverified</em>. Official Raspberry Pi documentation should be consulted for definitive specifications.</p>
+</blockquote>
+<hr />
+<h2 id="1-overview-of-the-bcm2712-boot-sequence">1. Overview of the BCM2712 Boot Sequence</h2>
+<p>The boot process on BCM2712 (Raspberry Pi 5 and Compute Module 5) differs substantially from earlier generations. Unlike the Pi 4, which relied on <code>bootcode.bin</code> loaded from an SD card or SPI flash, the CM5 implements a <strong>multi-stage internal ROM + SPI flash</strong> bootloader with no external <code>bootcode.bin</code> requirement on boot media.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Power-On / Reset</strong>
+   - The BCM2712 SoC begins execution from an <strong>on-chip boot ROM</strong> located on the VideoCore (VPU) processor.
+   - This ROM is mask-programmed and cannot be modified.</p>
+</li>
+<li>
+<p><strong>SPI Flash Loader (Stage 1)</strong>
+   - The boot ROM reads a <strong>tagged binary blob</strong> from the external SPI flash chip (mounted on the Compute Module board).
+   - This blob contains initialization code that brings the <strong>LPDDR4 memory controller</strong> online.</p>
+</li>
+<li>
+<p><strong>bootmain.elf Execution (Stage 2)</strong>
+   - After memory initialization, the blob loads <code>bootmain.elf</code> from SPI flash and transfers control to it.
+   - This stage is analogous to the legacy <code>bootcode.bin</code> on earlier Pi models but resides in SPI flash rather than on removable media.</p>
+</li>
+<li>
+<p><strong>Boot Configuration Reading</strong>
+   - <code>bootmain.elf</code> reads <code>bootconf.txt</code> stored in SPI flash.
+   - This configuration file contains the <strong>BOOT_ORDER</strong> parameter, which defines the boot device priority (e.g., SD → USB → network).</p>
+</li>
+<li>
+<p><strong>Boot Device Selection &amp; Kernel Load</strong>
+   - Based on BOOT_ORDER, the bootloader attempts to boot from the selected media (SD card, USB, or network).
+   - The bootloader reads <code>config.txt</code> and the kernel image from the boot media.
+   - Control is handed to the kernel (or bare-metal application) at the configured load address.</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>Source:</strong> "Pi5 Boot Process" — Raspberry Pi Forums (cleverca22, Jul 2024)</p>
+</blockquote>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="spi-flash-organization">SPI Flash Organization</h3>
+<p>The Compute Module 5 includes an <strong>SPI flash chip</strong> (typically 512KB to 2MB, board-dependent) that stores the bootloader components:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot ROM</td>
+<td>BCM2712 internal</td>
+<td>Mask-Programmed; cannot be modified</td>
+</tr>
+<tr>
+<td>Tagged blob</td>
+<td>SPI flash</td>
+<td>Initializes LPDDR4 memory controller</td>
+</tr>
+<tr>
+<td>bootmain.elf</td>
+<td>SPI flash</td>
+<td>Main bootloader; reads bootconf.txt</td>
+</tr>
+<tr>
+<td>bootconf.txt</td>
+<td>SPI flash</td>
+<td>Contains BOOT_ORDER and flash-level config</td>
+</tr>
+</tbody>
+</table>
+<h3 id="firmware-equivalents-no-external-elfdat-files">Firmware Equivalents — No External ELF/DAT Files</h3>
+<p>Unlike earlier Raspberry Pi models:</p>
+<ul>
+<li><strong>CM5 does NOT require <code>bootcode.bin</code></strong> — this file is not used and cannot be executed by the VPU.</li>
+<li><strong>CM5 does NOT require <code>start.elf</code> or <code>fixup.dat</code></strong> — these were used on Pi 0–3.</li>
+<li><strong>CM5 does NOT require <code>start4.elf</code> or <code>fixup4.dat</code></strong> — these were used on Pi 4.</li>
+<li>The <strong>functionality previously provided by these files is now stored in SPI flash</strong> and loaded by <code>bootmain.elf</code>.</li>
+</ul>
+<blockquote>
+<p>"start.elf and fixup.dat are only valid on the pi0-pi3. start4.elf and fixup4.dat are only valid on the pi4 family. and pi5 just doesnt need any elf or dat, its all in SPI flash."
+— <em>procount, "Pi5 Boot Process" — Raspberry Pi Forums</em></p>
+</blockquote>
+<h3 id="boot-media-file-requirements">Boot Media File Requirements</h3>
+<p>For bootable SD cards or USB drives, the following minimal file set is required:</p>
+<ul>
+<li><code>config.txt</code> — Boot configuration (kernel name, device tree, memory settings)</li>
+<li>Kernel image — Typically <code>kernel8.img</code> (64-bit bare-metal or Linux kernel)</li>
+<li>Device Tree Blob (optional in some bare-metal scenarios) — <code>bcm2712-rpi-5-b.dtb</code></li>
+</ul>
+<blockquote>
+<p><strong>Community observation:</strong> "It's true that only bcm2712-rpi-5-b.dtb and config.txt are needed on the SD card."
+— <em>satyria, "Pi5 Boot Process" — Raspberry Pi Forums</em></p>
+</blockquote>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>The BCM2712 bootloader supports multiple boot modes, configurable via the <strong>BOOT_ORDER</strong> setting in SPI flash (<code>bootconf.txt</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>Description</th>
+<th>Availability on CM5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SD Card (eMMC/SDIO)</strong></td>
+<td>Boot from on-board eMMC or external SD card slot</td>
+<td>✅ Supported</td>
+</tr>
+<tr>
+<td><strong>USB Mass Storage</strong></td>
+<td>Boot from USB drive (HDD, SSD, flash drive)</td>
+<td>✅ Supported</td>
+</tr>
+<tr>
+<td><strong>Network / PXE</strong></td>
+<td>Boot over Ethernet via DHCP + TFTP</td>
+<td>✅ Supported (community-confirmed)</td>
+</tr>
+<tr>
+<td><strong>SPI Flash</strong></td>
+<td>Fallback; primary firmware storage</td>
+<td>✅ Always used</td>
+</tr>
+</tbody>
+</table>
+<h3 id="boot_order-configuration">BOOT_ORDER Configuration</h3>
+<p>The BOOT_ORDER parameter in <code>bootconf.txt</code> specifies a sequence of boot attempts. A typical order for general-purpose use is:</p>
+<pre><code>BOOT_ORDER=0xf46148d
+</code></pre>
+<p>Which typically translates to: SD → USB → Network → SPI flash (in order of priority).</p>
+<h3 id="network-boot">Network Boot</h3>
+<p>Community discussion confirms that <strong>network boot (PXE) is functional</strong> on Pi 5 / CM5:</p>
+<blockquote>
+<p>"PS: btw, I'm booting over the network - easier workflow for me!"
+— <em>pottendo, Circle GitHub Discussion #413</em></p>
+</blockquote>
+<p>Network boot requires:</p>
+<ul>
+<li>A DHCP server on the network</li>
+<li>A TFTP server serving <code>config.txt</code>, kernel image, and device tree blob</li>
+<li>Ethernet connectivity on the CM5 (via on-board PHY or USB Ethernet adapter, depending on CM5 variant)</li>
+</ul>
+<hr />
+<h2 id="4-uart-serial-console-configuration-and-quirks">4. UART / Serial Console — Configuration and Quirks</h2>
+<h3 id="default-serial-output-ttys11">Default Serial Output: ttyS11</h3>
+<p>On the Compute Module 5 (BCM2712), the <strong>default serial console is on the dedicated UART connector</strong> (ttyS11), not the legacy GPIO pins 14/15 (ttyS1). This is a departure from earlier Pi models.</p>
+<blockquote>
+<p>"On the RPi 5 the serial console is by default the dedicated UART connector ('ttyS11')."
+— <em>rsta2, Circle GitHub Discussion #413</em></p>
+</blockquote>
+<h3 id="using-legacy-gpio-uart-ttys1">Using Legacy GPIO UART (ttyS1)</h3>
+<p>To redirect the serial console to GPIO pins 14/15 (the traditional UART pins), the following configuration is required:</p>
+<p><strong>For bare-metal Circle framework:</strong></p>
+<pre><code class="language-makefile">DEFINE += -DSERIAL_DEVICE_DEFAULT=0
+</code></pre>
+<blockquote>
+<p><em>Source: Circle GitHub Discussion #413 (rsta2, Feb 2024)</em></p>
+</blockquote>
+<h3 id="bare-metal-serial-configuration-notes">Bare-Metal Serial Configuration Notes</h3>
+<p>For bare-metal development:</p>
+<ul>
+<li>The default console on GPIO 14/15 is <strong>ttyS1</strong> (baud rate 115200, 8N1).</li>
+<li>If using the dedicated mini-UART connector on the CM5 IO board, it appears as <strong>ttyS11</strong>.</li>
+<li>Ensure your <code>config.txt</code> specifies the correct <code>kernel_address</code> to avoid loading issues.</li>
+</ul>
+<h3 id="uart-availability-on-compute-module-5">UART Availability on Compute Module 5</h3>
+<p>The CM5 has two UARTs available:</p>
+<ul>
+<li><strong>Mini UART (ttyS1)</strong> — mapped to GPIO 14/15; requires configuration</li>
+<li><strong>PL011 UART (ttyS11)</strong> — dedicated UART connector on CM5 IO board; default console</li>
+</ul>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="minimal-configtxt-for-bare-metal">Minimal config.txt for Bare-Metal</h3>
+<p>The following is the <strong>minimum viable <code>config.txt</code></strong> for bare-metal bring-up on CM5:</p>
+<pre><code class="language-ini">kernel_address=0x80000
+kernel=kernel_2712.img
+os_check=0
+</code></pre>
+<ul>
+<li><strong><code>kernel_address=0x80000</code></strong>: Loads the kernel at the standard ARM64 load address. Without this, the firmware may load the image at <code>0x200000</code> and attempt Linux-specific behavior.</li>
+<li><strong><code>os_check=0</code></strong>: Disables OS validation checks. Without this, the firmware assumes a Linux kernel and may load at the wrong address or attempt to load a device tree automatically.</li>
+<li><strong><code>kernel=kernel_2712.img</code></strong>: Specifies the kernel filename (default is <code>kernel8.img</code>).</li>
+</ul>
+<blockquote>
+<p>"Actually you only need config.txt to boot a Pi 5, in addition to your kernel / bare metal application which should be named kernel8.img by default, but you'll have to add os_check=0 to config.txt, as otherwise it assumes that you're booting Linux, so it will run your code from 0x200000 instead of 0x80000, and will try loading the device tree blob."
+— <em>Fridux, "Pi5 Boot Process" — Raspberry Pi Forums</em></p>
+</blockquote>
+<h3 id="device-tree-blob-dtb">Device Tree Blob (DTB)</h3>
+<p>For bare-metal use, the device tree blob (<code>bcm2712-rpi-5-b.dtb</code>) may or may not be required:</p>
+<ul>
+<li>If using <code>os_check=0</code>, the bootloader does not mandate DTB loading.</li>
+<li>For full hardware initialization (e.g., to access board-specific peripherals), the DTB is recommended.</li>
+<li>Community testing shows bare-metal images can boot with only <code>config.txt</code> and the kernel image.</li>
+</ul>
+<h3 id="bare-metal-framework-support">Bare-Metal Framework Support</h3>
+<p><strong>Circle</strong> (a popular bare-metal C++ framework for Raspberry Pi) supports CM5 on the <code>rpi5</code> branch:</p>
+<ul>
+<li>Requires <code>kernel_address=0x80000</code> in <code>config.txt</code></li>
+<li>For headless operation, add <code>DEFINE += -DSCREEN_HEADLESS</code> in <code>Config.mk</code></li>
+<li>Network boot is confirmed working with Circle on CM5</li>
+</ul>
+<blockquote>
+<p>"Serial works also again - on pins 14/15. I managed to merge this into circle-stdlib and even my app starts doing something..."
+— <em>pottendo, Circle GitHub Discussion #413</em></p>
+</blockquote>
+<h3 id="known-bare-metal-quirks">Known Bare-Metal Quirks</h3>
+<ul>
+<li><strong>HDMI/Display output</strong>: Many configuration options available on earlier Pis are not honored by the CM5 firmware. The Linux kernel now handles display output; bare-metal frameworks relying on firmware-provided graphics may have limited display compatibility.</li>
+<li><strong>USB/Ethernet</strong>: Some bare-metal frameworks (including Circle) require code adoption for CM5's USB and Ethernet drivers (<code>#if RASPPI &lt;= 4</code> guards may need removal).</li>
+<li><strong>Dynamic frequency scaling</strong>: The CM5 may change ARM core frequency dynamically; bare-metal code should account for variable clock speeds or disable DVFS if timing-critical.</li>
+</ul>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 4 (BCM2711)</th>
+<th>CM5 / Pi 5 (BCM2712)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot ROM</td>
+<td>On-chip VPU</td>
+<td>On-chip VPU (updated)</td>
+</tr>
+<tr>
+<td>Boot firmware location</td>
+<td>SPI flash + SD card</td>
+<td><strong>SPI flash only</strong> (no <code>bootcode.bin</code> on SD)</td>
+</tr>
+<tr>
+<td>Required boot files</td>
+<td><code>bootcode.bin</code>, <code>config.txt</code>, <code>start4.elf</code>, <code>fixup4.dat</code></td>
+<td><strong><code>config.txt</code> + kernel only</strong></td>
+</tr>
+<tr>
+<td>Memory controller</td>
+<td>LPDDR4</td>
+<td>LPDDR4 (initialized by SPI blob)</td>
+</tr>
+<tr>
+<td>Default kernel load address</td>
+<td><code>0x80000</code> (or <code>0x200000</code> for 64-bit)</td>
+<td><strong><code>0x80000</code> (requires explicit config)</strong></td>
+</tr>
+<tr>
+<td>Serial console default</td>
+<td>ttyS1 (GPIO 14/15)</td>
+<td><strong>ttyS11</strong> (dedicated connector)</td>
+</tr>
+<tr>
+<td>Boot modes</td>
+<td>SD, USB, network, SPI</td>
+<td>SD, USB, network, SPI</td>
+</tr>
+<tr>
+<td>OS validation (<code>os_check</code>)</td>
+<td>Optional</td>
+<td><strong>Recommended <code>os_check=0</code> for bare-metal</strong></td>
+</tr>
+<tr>
+<td>Display firmware support</td>
+<td>Full (start4.elf)</td>
+<td>Limited (handled in Linux kernel)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="summary-of-key-changes">Summary of Key Changes</h3>
+<ol>
+<li><strong>No external bootloader files on boot media</strong> — All firmware resides in SPI flash; no <code>bootcode.bin</code> or <code>start*.elf</code> needed.</li>
+<li><strong>SPI flash is mandatory</strong> — Even for SD boot, the primary firmware chain runs from SPI flash first.</li>
+<li><strong>Default kernel address changed</strong> — Without <code>kernel_address=0x80000</code>, bare-metal images may be loaded incorrectly.</li>
+<li><strong>Serial console moved</strong> — Default is now ttyS11, not the legacy GPIO UART.</li>
+<li><strong>Network boot functional</strong> — Unlike early Pi 4 revisions, network boot works reliably on CM5.</li>
+</ol>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following topics remain <strong>unconfirmed or poorly documented</strong> in official Raspberry Pi materials. Community experimentation has provided partial answers, but definitive specifications are not available.</p>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SPI flash layout specification</strong></td>
+<td>⚠️ Unverified</td>
+<td>No public document describes exact offsets or structure of bootconf.txt or boot blob format.</td>
+</tr>
+<tr>
+<td><strong>BOOT_ORDER bitfield encoding</strong></td>
+<td>⚠️ Community-sourced</td>
+<td>Known to control boot priority; exact bitfield values are inferred, not officially documented.</td>
+</tr>
+<tr>
+<td><strong>bootconf.txt full options</strong></td>
+<td>⚠️ Unverified</td>
+<td>Only BOOT_ORDER is widely discussed. Other options (if any) are unknown.</td>
+</tr>
+<tr>
+<td><strong>eMMC boot vs SD card boot differences</strong></td>
+<td>⚠️ Unknown</td>
+<td>Unclear if there are separate boot paths for on-board eMMC vs external SD.</td>
+</tr>
+<tr>
+<td><strong>Secure boot / signed firmware</strong></td>
+<td>❓ No information</td>
+<td>No public info on secure boot implementation for BCM2712.</td>
+</tr>
+<tr>
+<td><strong>Recovery mode procedures</strong></td>
+<td>⚠️ Partial</td>
+<td>Holding <code>FIT</code> or <code>RUN</code> pins during boot can trigger recovery; exact procedure for CM5 not widely published.</td>
+</tr>
+<tr>
+<td><strong>GPU/VPU firmware source</strong></td>
+<td>❓ Not available</td>
+<td>The tagged blob and bootmain.elf are not open-source; no public disassembly or documentation.</td>
+</tr>
+<tr>
+<td><strong>USB device boot (not host)</strong></td>
+<td>❓ Unknown</td>
+<td>It is unclear if CM5 can boot as a USB peripheral (device mode).</td>
+</tr>
+<tr>
+<td><strong>PCIe boot</strong></td>
+<td>❓ Not applicable</td>
+<td>CM5 does not have PCIe; this is not a boot mode.</td>
+</tr>
+<tr>
+<td><strong>JTAG debug availability</strong></td>
+<td>⚠️ Unverified</td>
+<td>No clear documentation on ARM CoreSight/JTAG debug access on CM5.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="recommendations-for-developers">Recommendations for Developers</h3>
+<ul>
+<li><strong>Experiment cautiously</strong>: Many bootloader behaviors are discovered through community trial-and-error.</li>
+<li><strong>Use official Raspberry Pi imager</strong> for flashing CM5 bootloader EEPROM updates when available.</li>
+<li><strong>Monitor the Raspberry Pi forums</strong> for new discoveries; the community is the primary source of CM5 bootloader insight.</li>
+<li><strong>Reference Pi 5 documentation</strong> — While not identical, Pi 5 (standard form factor) shares the same BCM2712 SoC and bootloader architecture; many findings apply to CM5.</li>
+</ul>
+<hr />
+<h2 id="appendix-minimal-configtxt-example-for-bare-metal-cm5">Appendix: Minimal config.txt Example for Bare-Metal CM5</h2>
+<pre><code class="language-ini"># Minimal config.txt for bare-metal on Compute Module 5 (BCM2712)
+kernel_address=0x80000
+kernel=kernel_2712.img
+os_check=0
+# Optional: specify device tree explicitly
+# device_tree=bcm2712-rpi-5-b.dtb
+</code></pre>
+<hr />
+<p><em>This document is community-maintained. Last updated: based on source material collected November 2025.</em></p>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
