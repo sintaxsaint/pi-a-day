@@ -4,6 +4,17 @@ Community documentation for Raspberry Pi bootloaders, AI-generated from forum po
 
 **Live site: https://pi-a-day.pages.dev**
 
+## Requirements
+
+- A [GitHub account](https://github.com/join) — the tool pushes generated reports to GitHub automatically
+- Git installed and configured with your GitHub credentials
+- Clone this repo:
+
+```bash
+git clone https://github.com/sintaxsaint/pi-a-day.git
+cd pi-a-day
+```
+
 ## Run it
 
 ```bash
