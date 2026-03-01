@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi 3 (BCM2837) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi 3 (BCM2837) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pi3-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#pi-3-only-bootcode-bin-usb-boot" target="_blank" rel="noopener">Pi 3 USB / Network Boot - Official Docs</a></li>
+      <li><a href="https://github.com/raspberrypi/usbboot" target="_blank" rel="noopener">raspberrypi/usbboot - GitHub (BCM2837 USB boot ROM)</a></li>
+      <li><a href="https://elinux.org/RPiconfig" target="_blank" rel="noopener">RPiconfig boot options - eLinux Wiki</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=174648" target="_blank" rel="noopener">BCM2837 64-bit boot thread - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-3-bcm2837-bootloader-boot-process-community-documentation">Raspberry Pi 3 (BCM2837) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<blockquote>
+<p><strong>Important Note</strong>: This document covers the Raspberry Pi 3 family using the BCM2837 SoC: Pi 3 Model B, Pi 3 Model B+, Pi 3 Model A+, and Pi 2 Model B v1.2. It does not cover BCM2835, BCM2836, or later generations (BCM2711, etc.).</p>
+</blockquote>
+<hr />
+<h2 id="1-overview-of-the-bcm2837-boot-sequence">1. Overview of the BCM2837 Boot Sequence</h2>
+<p>The BCM2837 SoC contains an embedded boot ROM that executes immediately on power-on or reset. This ROM is hardcoded into the silicon and cannot be modified. The boot process proceeds through multiple stages, involving both the ARM cores and the VideoCore IV GPU.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Power-On / Reset</strong>
+   - The BCM2837 begins execution from a fixed address in the internal boot ROM (0x00000000).
+   - The boot ROM performs initial hardware initialization (PLLs, SDRAM controller calibration).</p>
+</li>
+<li>
+<p><strong>Boot Mode Selection</strong>
+   - The ROM checks boot mode selection pins (or OTP bits) to determine the boot source.
+   - Supported boot sources are tried in a defined order (see Section 3).</p>
+</li>
+<li>
+<p><strong>First Stage: Loading <code>bootcode.bin</code></strong>
+   - On Pi 3 devices, the ROM reads the first FAT-formatted partition on the SD card (or equivalent boot device).
+   - It loads <code>bootcode.bin</code> into the L2 cache (or SRAM on some variants).
+   - <em>Note</em>: On Pi 3B+ and Pi 3A+, <code>bootcode.bin</code> may be replaced by OTP-enabled EEPROM boot behavior (see Section 2).</p>
+</li>
+<li>
+<p><strong>Second Stage: GPU Firmware (<code>start.elf</code> and variants)</strong>
+   - <code>bootcode.bin</code> enables the SDRAM and loads the VideoCore firmware (<code>start.elf</code>) from the boot partition.
+   - The GPU begins execution and configures the ARM cores' memory layout.
+   - Additional firmware files are loaded:</p>
+<ul>
+<li><code>fixup.dat</code> — memory split configuration</li>
+<li><code>config.txt</code> — parsed for hardware configuration</li>
+<li><code>cmdline.txt</code> — kernel command line passed to the ARM core</li>
+</ul>
+</li>
+<li>
+<p><strong>Third Stage: Loading the Kernel</strong>
+   - The GPU loads the kernel image (typically <code>kernel8.img</code> for 64-bit, <code>kernel7.img</code> for 32-bit) into SDRAM.
+   - Device tree blobs (<code>.dtb</code>) or device tree overlays may also be loaded.
+   - The GPU then releases the ARM cores from reset, passing control to the loaded kernel.</p>
+</li>
+<li>
+<p><strong>Kernel Handoff</strong>
+   - The ARM core(s) begin execution at the kernel entry point.
+   - The Linux kernel (or bare-metal payload) takes over all further control.</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "Boot sequence" and "Raspberry Pi boot EEPROM" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="sd-card-the-primary-boot-medium">SD Card — The Primary Boot Medium</h3>
+<p>On the Raspberry Pi 3 family, the SD card remains the primary and most well-documented boot medium. The boot partition must be:</p>
+<ul>
+<li><strong>FAT32</strong> formatted (typically the first partition, flagged as bootable)</li>
+<li>Located in the first portion of the SD card</li>
+<li>Containing the required firmware files</li>
+</ul>
+<h3 id="required-boot-files">Required Boot Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>First-stage bootloader — initializes SDRAM, loads start.elf</td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>VideoCore firmware — main GPU bootloader</td>
+</tr>
+<tr>
+<td><code>fixup.dat</code></td>
+<td>Memory split configuration between GPU and ARM</td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Hardware configuration (video, UART, overclock, boot options)</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command line (single line, no line breaks)</td>
+</tr>
+<tr>
+<td><code>kernel8.img</code></td>
+<td>64-bit ARM kernel (Pi 3 64-bit mode)</td>
+</tr>
+<tr>
+<td><code>kernel7.img</code></td>
+<td>32-bit ARM kernel (default)</td>
+</tr>
+<tr>
+<td><code>*.dtb</code></td>
+<td>Device tree blobs for hardware description</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "boot folder contents" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<h3 id="eeprom-boot-pi-3b-and-pi-3a">EEPROM Boot — Pi 3B+ and Pi 3A+</h3>
+<p>The <strong>Pi 3 Model B+</strong> and <strong>Pi 3 Model A+</strong> introduced bootloader EEPROM support, though it functions differently than on Pi 4:</p>
+<ul>
+<li><strong>Pi 3B+</strong> has a bootloader stored in OTP (One-Time Programmable) memory that can load <code>bootcode.bin</code> from SD card, or — if boot from network/USB is OTP-enabled — from those sources.</li>
+<li><strong>Pi 3A+</strong> similarly supports EEPROM-based boot modes, but the mechanism is more constrained than on Pi 4.</li>
+<li><strong>Pi 2 Model B v1.2</strong> uses the same BCM2837 SoC as Pi 3 and behaves identically to Pi 3B for boot purposes.</li>
+</ul>
+<blockquote>
+<p><strong>Note</strong>: The Raspberry Pi 3 family does <strong>not</strong> have a user-updateable SPI flash EEPROM like Pi 4. The bootloader is burned into OTP bits during manufacturing or via the <code>raspberrypi-utils</code> tools.</p>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "Raspberry Pi boot EEPROM" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<h3 id="firmware-variants">Firmware Variants</h3>
+<p>The <code>start.elf</code> has several variants controlling GPU memory split:</p>
+<ul>
+<li><code>start.elf</code> — default split</li>
+<li><code>start_cd.elf</code> — minimal GPU (for headless/compute use)</li>
+<li><code>start_x.elf</code> — includes camera and codec support</li>
+<li><code>start_db.elf</code> — debug variant with verbose output</li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "config.txt" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>The BCM2837 supports multiple boot modes, though availability varies by model and firmware version.</p>
+<h3 id="sd-card-boot">SD Card Boot</h3>
+<ul>
+<li><strong>Supported on</strong>: All Pi 3 variants (B, B+, A+, Pi 2 v1.2)</li>
+<li><strong>Mechanism</strong>: Boot ROM reads the first FAT partition on the SD card</li>
+<li><strong>Default behavior</strong> for all models</li>
+</ul>
+<h3 id="usb-boot">USB Boot</h3>
+<ul>
+<li><strong>Supported on</strong>: Pi 3B, Pi 3B+, Pi 3A+, Pi 2 v1.2</li>
+<li><strong>Requirements</strong>:</li>
+<li>OTP bit must be set to enable USB boot (<code>program_usb_boot_mode=1</code> in <code>config.txt</code> + reboot)</li>
+<li>A suitable USB device (mass storage device) must be present</li>
+<li><strong>Behavior</strong>: After the OTP bit is set, the boot ROM will attempt USB mass storage before falling back to SD card</li>
+<li><strong>Limitation</strong>: USB boot on Pi 3 relies on the USB 2.0 controller, which must be initialized by the GPU firmware. Early-stage USB boot is slower than SD card boot.</li>
+<li><strong>Compatibility</strong>: The <code>raspberrypi/usbboot</code> repository provides a host-side tool (<code>rpiboot</code>) for provisioning. However, note that the mass-storage-gadget firmware in the usbboot repo explicitly supports <strong>Pi 3A+</strong>, not Pi 3B/3B+ (which use the legacy msd firmware).</li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "USB boot modes" and "Raspberry Pi boot modes" (Raspberry Pi Ltd.)<br />
+<strong>Source</strong>: GitHub — <code>raspberrypi/usbboot</code> README (noting compatible device list)</p>
+</blockquote>
+<h3 id="network-boot-pxe">Network Boot (PXE)</h3>
+<ul>
+<li><strong>Supported on</strong>: Pi 3B, Pi 3B+, Pi 3A+, Pi 2 v1.2</li>
+<li><strong>Requirements</strong>:</li>
+<li>OTP bit must be set for network boot</li>
+<li>DHCP server and TFTP server on the network</li>
+<li>Ethernet adapter (built-in on all Pi 3 models)</li>
+<li><strong>Mechanism</strong>: The boot ROM broadcasts a DHCP request, receives an IP address and TFTP server details, then downloads <code>bootcode.bin</code> (or equivalent) over HTTP/TFTP</li>
+<li><strong>Implementation</strong>: The Pi 3 uses the <strong>network boot mode</strong> which can operate over IPv4 (more common) or IPv6</li>
+<li><strong>Performance</strong>: Network boot is generally slower than SD card boot but useful for diskless deployments</li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "Network boot your Raspberry Pi" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<h3 id="boot-order">Boot Order</h3>
+<p>The boot ROM attempts sources in a fixed priority order. The exact order on BCM2837:</p>
+<ol>
+<li><strong>SD card</strong> (primary, always attempted first)</li>
+<li><strong>USB</strong> (if OTP bit set)</li>
+<li><strong>Network</strong> (if OTP bit set; may be attempted in parallel or after USB failure)</li>
+</ol>
+<p>The OTP bits control whether USB and network modes are even attempted. Once a valid bootable device is found, the process proceeds.</p>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "Raspberry Pi boot modes" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<hr />
+<h2 id="4-uart-serial-console-configuration-and-quirks">4. UART / Serial Console — Configuration and Quirks</h2>
+<p>The Raspberry Pi 3 has specific UART configurations that differ from earlier models due to the integration of Bluetooth.</p>
+<h3 id="hardware-uarts-on-pi-3">Hardware UARTs on Pi 3</h3>
+<table>
+<thead>
+<tr>
+<th>UART</th>
+<th>Device Node</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PL011</strong> (primary)</td>
+<td><code>/dev/ttyS0</code></td>
+<td>Primary UART, pins 14/15 (GPIO 14/15)</td>
+</tr>
+<tr>
+<td><strong>mini UART</strong></td>
+<td><code>/dev/ttyS0</code> (or <code>/dev/ttyAMA0</code> on earlier Pi)</td>
+<td>Secondary UART, lower performance</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Critical change on Pi 3</strong>: The <strong>mini UART</strong> became the default for GPIO pins 14/15 (the familiar TXD/RXD pins). The <strong>PL011</strong> is now internally routed to Bluetooth. This is a significant difference from Pi 2.</p>
+<h3 id="enabling-the-serial-console">Enabling the Serial Console</h3>
+<ol>
+<li>
+<p>Add to <code>config.txt</code>:
+   <code>enable_uart=1</code>
+   - On Pi 3, this enables the mini UART on GPIO 14/15
+   - Disables Bluetooth if <code>dtoverlay=pi3-disable-bt</code> is also set</p>
+</li>
+<li>
+<p>Add to <code>cmdline.txt</code> (kernel command line):
+   <code>console=serial0,115200</code></p>
+</li>
+<li>
+<p>(Optional) Disable Bluetooth to free the PL011:
+   <code>dtoverlay=pi3-disable-bt</code>
+   This makes <code>/dev/ttyAMA0</code> available on the GPIO pins.</p>
+</li>
+</ol>
+<h3 id="baud-rate-and-timing-quirks">Baud Rate and Timing Quirks</h3>
+<ul>
+<li>The <strong>mini UART</strong> baud rate is derived from the core clock and can vary with overclocking settings, potentially causing baud rate mismatch.</li>
+<li>The PL011 (when available) is a more reliable full-featured UART with proper FIFO and baud rate control.</li>
+<li><strong>Flow control</strong> (CTS/RTS) is not available on the GPIO header UARTs — only TX/RX (and ground) are exposed on pins.</li>
+</ul>
+<h3 id="boot-serial-output">Boot Serial Output</h3>
+<p>The firmware (<code>bootcode.bin</code>, <code>start.elf</code>) outputs early boot messages to the primary UART (the one mapped to GPIO 14/15 at boot time). This output is useful for debugging boot failures:</p>
+<ul>
+<li><strong>Pi 3 default</strong>: mini UART outputs at 115200 baud</li>
+<li>Messages include: firmware version, SDRAM initialization, partition detection, kernel load progress</li>
+</ul>
+<h3 id="known-issues">Known Issues</h3>
+<ul>
+<li><strong>Bluetooth interference</strong>: By default, Bluetooth uses the PL011, which shares the same pins as the GPIO UART. Without configuration, serial console on the header may not work or may output garbage if Bluetooth is active.</li>
+<li><strong>Pi 3B+ UART mapping</strong>: Some community reports indicate that the UART mapping changed slightly between Pi 3B and Pi 3B+ firmware versions; always verify with <code>vcgencmd get_config str</code> .</li>
+<li><strong>Mini UART instability</strong>: Under heavy system load or with certain <code>config.txt</code> settings (e.g., <code>core_freq</code> changes), the mini UART baud rate can drift.</li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "Configure UARTs" (Raspberry Pi Ltd.)<br />
+<strong>Source</strong>: Community reports — Raspberry Pi Forums</p>
+</blockquote>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-up Notes</h2>
+<h3 id="bare-metal-development-on-bcm2837">Bare-Metal Development on BCM2837</h3>
+<p>Developing bare-metal code for the Pi 3 requires understanding the split between ARM and GPU responsibilities.</p>
+<h4 id="option-1-bypassing-the-gpu-arm-only-boot">Option 1: Bypassing the GPU (ARM-only Boot)</h4>
+<ul>
+<li>The Pi 3 can boot directly into ARM-only code by placing a specially crafted <code>kernel8.img</code> (64-bit) or <code>kernel7.img</code> (32-bit) in the boot partition, but <strong>the GPU still executes <code>start.elf</code></strong> to initialize SDRAM.</li>
+<li>It is not possible to completely bypass the GPU firmware — the SDRAM initialization is only performed by the VideoCore.</li>
+<li>Bare-metal tutorials typically use a minimal <code>bootcode.bin</code> + <code>start.elf</code> + <code>kernel8.img</code> flow.</li>
+</ul>
+<h4 id="option-2-using-existing-frameworks">Option 2: Using Existing Frameworks</h4>
+<ul>
+<li><strong>Circle</strong> — A C++ bare-metal framework for Raspberry Pi (supports Pi 3 / BCM2837). Provides a clean API for GPIO, UART, USB, and other peripherals.</li>
+<li><strong>U-Boot</strong> — The Universal Boot Loader can be compiled for Pi 3, providing a flexible second-stage bootloader. U-Boot supports network boot, SATA, USB, and can load kernels from various sources.</li>
+<li>Build with: <code>make CROSS_COMPILE=aarch64-raspberrypi-linux-gnu- rpi_3_defconfig</code></li>
+<li>U-Boot can be loaded as <code>boot.img</code> by the Pi 3 firmware</li>
+<li><strong>Bare-metal examples</strong> — The <code>raspberrypi/firmware</code> GitHub repository contains minimal example code.</li>
+</ul>
+<h4 id="boot-configuration-via-configtxt">Boot Configuration via <code>config.txt</code></h4>
+<p>Key <code>config.txt</code> options for bare-metal development:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kernel8.img</code> / <code>kernel7.img</code></td>
+<td>Specifies which kernel to load (8 = 64-bit, 7 = 32-bit)</td>
+</tr>
+<tr>
+<td><code>arm_64bit=1</code></td>
+<td>Forces 64-bit kernel load mode</td>
+</tr>
+<tr>
+<td><code>disable_commandline_tags=1</code></td>
+<td>Prevents firmware from passing ATAGS/DTB to kernel</td>
+</tr>
+<tr>
+<td><code>device_tree_address=0x100</code></td>
+<td>Sets location for device tree blob</td>
+</tr>
+<tr>
+<td><code>enable_uart=1</code></td>
+<td>Enables UART output</td>
+</tr>
+<tr>
+<td><code>gpio</code></td>
+<td>Can be used to configure pin states before kernel boot</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "config.txt" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<h3 id="device-tree-and-overlays">Device Tree and Overlays</h3>
+<ul>
+<li>The Pi 3 uses <strong>device tree</strong> to describe hardware.</li>
+<li>Custom hardware can be described using device tree overlays (<code>.dtbo</code> files compiled from <code>.dts</code>).</li>
+<li>Overlays are loaded from <code>/boot/overlays/</code> and referenced in <code>config.txt</code> using <code>dtoverlay=</code></li>
+<li>The device tree blob (<code>.dtb</code>) is typically <code>bcm2837-rpi-3-b.dtb</code> or <code>bcm2837-rpi-3-b-plus.dtb</code></li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "Device Trees, overlays, and parameters" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<h3 id="boot-debugging-tips">Boot Debugging Tips</h3>
+<ul>
+<li><strong>Boot delay</strong>: Add <code>boot_delay=1</code> to <code>config.txt</code> to give time for UART connection</li>
+<li><strong>Boot log level</strong>: Not directly controllable from firmware, but Linux kernel <code>earlyprintk</code> can be enabled</li>
+<li><strong>LED codes</strong>: The Pi 3 has a single green Activity LED (ACT). Patterns indicate boot failures (e.g., 3 flashes = <code>bootcode.bin</code> not found, 4 flashes = <code>start.elf</code> not found, 7 flashes = kernel not found)</li>
+</ul>
+<blockquote>
+<p><strong>Source</strong>: Raspberry Pi Documentation — "LED warning flash codes" (Raspberry Pi Ltd.)</p>
+</blockquote>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 2 (BCM2836)</th>
+<th>Pi 3 (BCM2837)</th>
+<th>Pi 3B+ (BCM2837B0)</th>
+<th>Pi 4 (BCM2711)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SoC architecture</strong></td>
+<td>ARM Cortex-A7 (32-bit)</td>
+<td>ARM Cortex-A53 (64-bit)</td>
+<td>ARM Cortex-A53 (64-bit)</td>
+<td>ARM Cortex-A72 (64-bit)</td>
+</tr>
+<tr>
+<td><strong>Boot ROM</strong></td>
+<td>Limited boot modes</td>
+<td>Extended boot modes (USB/PXE)</td>
+<td>EEPROM bootloader (limited)</td>
+<td>Full SPI EEPROM bootloader</td>
+</tr>
+<tr>
+<td><strong>Boot firmware storage</strong></td>
+<td>SD card only</td>
+<td>SD + OTP (USB/PXE)</td>
+<td>OTP + EEPROM</td>
+<td>User-updateable SPI flash</td>
+</tr>
+<tr>
+<td><strong>USB boot</strong></td>
+<td>No (without bootloader EEPROM)</td>
+<td>Yes (OTP-enabled)</td>
+<td>Yes (OTP-enabled)</td>
+<td>Yes (default)</td>
+</tr>
+<tr>
+<td><strong>Network boot</strong></td>
+<td>Limited</td>
+<td>Yes (OTP-enabled)</td>
+<td>Yes (OTP-enabled)</td>
+<td>Yes (default)</td>
+</tr>
+<tr>
+<td><strong>GPU firmware</strong></td>
+<td>VideoCore IV</td>
+<td>VideoCore IV</td>
+<td>VideoCore IV</td>
+<td>VideoCore VI (newer)</td>
+</tr>
+<tr>
+<td><strong>UART routing</strong></td>
+<td>PL011 on GPIO 14/15</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>

@@ -18,5 +18,9 @@
   "pi2": {
     "done": true,
     "generated_at": "2026-03-01"
+  },
+  "pi3": {
+    "done": true,
+    "generated_at": "2026-03-01"
   }
 }
