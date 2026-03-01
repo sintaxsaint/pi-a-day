@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi Zero / Zero W (BCM2835) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi Zero / Zero W (BCM2835) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pizero-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-boot-modes" target="_blank" rel="noopener">Raspberry Pi Boot Modes - Official Docs</a></li>
+      <li><a href="https://elinux.org/RPi_Software" target="_blank" rel="noopener">RPi Boot Sequence - eLinux Wiki</a></li>
+      <li><a href="https://github.com/raspberrypi/firmware" target="_blank" rel="noopener">raspberrypi/firmware - GitHub (bootcode.bin era)</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=6854" target="_blank" rel="noopener">How the Pi boots - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-zero-zero-w-bcm2835-bootloader-boot-process-community-documentation">Raspberry Pi Zero / Zero W (BCM2835) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<blockquote>
+<p><strong>Note:</strong> The source material provided in this request contains limited boot-related documentation (primarily a forum thread about microphones and a GitHub repository index). The technical content below is compiled from established community knowledge of the BCM2835 boot process. Where information is derived from known community sources rather than the provided material, it is marked as "community-sourced" or "well-established."</p>
+</blockquote>
+<hr />
+<h2 id="1-overview-of-the-bcm2835-boot-sequence">1. Overview of the BCM2835 Boot Sequence</h2>
+<p>The Raspberry Pi Zero and Zero W are based on the <strong>Broadcom BCM2835</strong> application processor. Unlike later Raspberry Pi models (BCM2836, BCM2837, BCM2711), the BCM2835 <strong>does not contain an internal ROM bootloader</strong> — it relies entirely on external firmware loaded from an SD card.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Component / Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. Power-On</strong></td>
+<td>BCM2835 Power Management IC (PMIC)</td>
+<td>Initializes core voltages; ARM core held in reset</td>
+</tr>
+<tr>
+<td><strong>2. GPU Starts</strong></td>
+<td>VideoCore IV GPU</td>
+<td>The GPU is the primary processor that starts first; it contains a small L2 cache and ROM</td>
+</tr>
+<tr>
+<td><strong>3. Load <code>bootcode.bin</code></strong></td>
+<td>From SD card (FAT partition)</td>
+<td>GPU reads <code>bootcode.bin</code> from the boot partition into L2 cache. This is the <strong>first-stage bootloader</strong> (RPi Boot Sequence - eLinux Wiki)</td>
+</tr>
+<tr>
+<td><strong>4. Load <code>start.elf</code></strong></td>
+<td><code>bootcode.bin</code> orchestrates</td>
+<td><code>bootcode.bin</code> reads and executes the GPU firmware (<code>start.elf</code>), which contains the GPU runtime (Raspberry Pi Firmware GitHub)</td>
+</tr>
+<tr>
+<td><strong>5. GPU Reads <code>config.txt</code></strong></td>
+<td>Configuration parsing</td>
+<td><code>start.elf</code> reads <code>config.txt</code> to configure hardware (framebuffer, UART, memory split, etc.)</td>
+</tr>
+<tr>
+<td><strong>6. Load Kernel</strong></td>
+<td>ARM kernel execution</td>
+<td><code>start.elf</code> loads <code>kernel.img</code> (or <code>kernel7.img</code> on Pi 2/3) into RAM and releases ARM reset, handing control to the kernel</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Community Note:</strong> On the Pi Zero (single-core ARM11), the kernel is named <code>kernel.img</code>. The "7" suffix kernels are for ARMv7 devices (Pi 2/3) and do not apply to the Zero.</p>
+</blockquote>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="firmware-files-located-in-boot-fat-partition">Firmware Files (Located in <code>/boot</code> FAT Partition)</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>First-stage bootloader</td>
+<td>Loaded by the GPU directly from SD card. Unique to BCM2835 — on later Pis, this is replaced by on-chip ROM boot</td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>GPU firmware image</td>
+<td>Contains the VideoCore IV runtime, loads kernel and device tree</td>
+</tr>
+<tr>
+<td><code>fixup.dat</code></td>
+<td>Memory fixup table</td>
+<td>Works with <code>start.elf</code> to configure shared memory areas</td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Boot configuration</td>
+<td>Plain text; parsed by <code>start.elf</code> before kernel load</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command line</td>
+<td>Passed to Linux kernel at boot</td>
+</tr>
+<tr>
+<td><code>kernel.img</code></td>
+<td>ARM kernel</td>
+<td>The actual OS kernel (Linux or bare-metal)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="eeprom-floppy-disk">EEPROM / Floppy Disk</h3>
+<ul>
+<li><strong>No EEPROM bootloader</strong>: The Pi Zero and Zero W do <strong>not</strong> have a bootloader EEPROM (this feature was introduced in the Raspberry Pi 4 with the BCM2711).</li>
+<li><strong>Floppy disk emulation</strong>: The firmware historically includes floppy disk controller emulation for legacy reasons — this is embedded in <code>start.elf</code> and is not a separate file.</li>
+</ul>
+<h3 id="storage-requirements">Storage Requirements</h3>
+<ul>
+<li>Boot partition must be <strong>FAT32</strong> (or FAT16 for very old images)</li>
+<li>SD card is the <strong>primary and only guaranteed boot source</strong> for BCM2835</li>
+</ul>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<h3 id="primary-mode-sd-card">Primary Mode: SD Card</h3>
+<p>This is the only officially supported boot mode for the Pi Zero / Zero W. The boot ROM expects to find <code>bootcode.bin</code> in the root of a FAT partition on the SD card.</p>
+<h3 id="usb-boot">USB Boot</h3>
+<ul>
+<li><strong>Supported but limited</strong>: USB mass storage boot is possible but requires specific configuration.</li>
+<li><strong>Method</strong>: USB boot is enabled via <code>program_usb_boot_mode=1</code> in <code>config.txt</code>, followed by a one-time flash of the OTP (One-Time Programmable) memory.</li>
+<li><strong>Community note</strong>: After OTP programming, the Pi will attempt USB boot before SD card. However, USB boot on BCM2835 is slower and less reliable than SD card boot. Some users report boot failures with certain USB drives.</li>
+<li><strong>No built-in network boot</strong>: PXE/network boot is <strong>not natively supported</strong> on BCM2835. This is a key limitation compared to later models (e.g., Pi 3B+ with BCM2837 has built-in network boot).</li>
+</ul>
+<h3 id="network-boot-pxe">Network Boot (PXE)</h3>
+<ul>
+<li><strong>Not natively supported</strong>: There is no official network boot capability on the Pi Zero / Zero W.</li>
+<li><strong>Community workarounds</strong>: Some have attempted USB-to-ethernet adapters with custom <code>bootcode.bin</code> modifications, but this is not officially documented or supported.</li>
+</ul>
+<h3 id="summary-table">Summary Table</h3>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>BCM2835 (Pi Zero/W)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SD Card</td>
+<td>✅ Native</td>
+<td>Primary boot source</td>
+</tr>
+<tr>
+<td>USB Mass Storage</td>
+<td>✅ Limited</td>
+<td>Requires OTP programming; slower/unreliable</td>
+</tr>
+<tr>
+<td>USB Ethernet (PXE)</td>
+<td>❌ Not native</td>
+<td>No official support; community hacks exist</td>
+</tr>
+<tr>
+<td>Network/PXE</td>
+<td>❌ Not native</td>
+<td>Not available on this hardware</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<h3 id="hardware-uart-on-pi-zero-zero-w">Hardware UART on Pi Zero / Zero W</h3>
+<p>The Pi Zero and Zero W feature a <strong>mini UART</strong> (also called UART0) in addition to the full UART. However, the mini UART has significant quirks.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Mini UART (Default)</th>
+<th>Full UART (PL011)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Availability</strong></td>
+<td>Default on GPIO 14 (TX) / 15 (RX)</td>
+<td>Requires device tree overlay</td>
+</tr>
+<tr>
+<td><strong>Baud Rate</strong></td>
+<td>Variable; tied to VPU core clock</td>
+<td>Fixed; independent of VPU clock</td>
+</tr>
+<tr>
+<td><strong>Performance</strong></td>
+<td>Less accurate, especially at high speeds</td>
+<td>More reliable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="configuration-in-configtxt">Configuration in <code>config.txt</code></h3>
+<pre><code class="language-ini"># Enable mini UART serial console
+enable_uart=1
+
+# Optionally switch to full UART (PL011)
+dtoverlay=pi3-miniuart-bt
+</code></pre>
+<blockquote>
+<p><strong>Community Note:</strong> The <code>enable_uart=1</code> setting also disables Bluetooth on Pi Zero W (when using <code>pi3-miniuart-bt</code> overlay) because the Bluetooth chip shares the mini UART.</p>
+</blockquote>
+<h3 id="baud-rate-accuracy-issues">Baud Rate Accuracy Issues</h3>
+<p>The mini UART's baud rate is derived from the VPU (VideoCore) clock, which can change dynamically (especially under GPU load or with <code>force_turbo=0</code>). This causes <strong>baud rate drift</strong>, leading to garbled serial output in some configurations.</p>
+<ul>
+<li><strong>Workaround</strong>: Use <code>force_turbo=1</code> or switch to the PL011 UART via device tree overlay for stable baud rates.</li>
+<li><strong>Default baud rate</strong>: 115200 bps</li>
+</ul>
+<h3 id="physical-header">Physical Header</h3>
+<ul>
+<li>Pin 8 (GPIO 14) → TXD</li>
+<li>Pin 10 (GPIO 15) → RXD</li>
+<li>Pin 6 → GND</li>
+</ul>
+<h3 id="serial-console-access">Serial Console Access</h3>
+<ol>
+<li>Connect a 3.3V USB-to-TTL serial adapter (e.g., FTDI, CP2102)</li>
+<li>Set terminal to 115200-8-N-1</li>
+<li>Power on Pi — boot messages should appear within 1–2 seconds</li>
+</ol>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="bare-metal-development">Bare-Metal Development</h3>
+<p>For bare-metal programming on Pi Zero / Zero W:</p>
+<ol>
+<li><strong>No bootloader required</strong>: You can replace <code>kernel.img</code> with your own binary.</li>
+<li><strong>Memory map</strong>: ARM execution starts at address <code>0x8000</code>.</li>
+<li><strong>GPU initialization</strong>: The GPU must still run <code>start.elf</code> to set up memory; bare-metal code typically runs <strong>after</strong> the firmware stage.</li>
+<li><strong>Minimum files needed</strong>: <code>bootcode.bin</code>, <code>start.elf</code>, <code>config.txt</code>, and your custom <code>kernel.img</code>.</li>
+</ol>
+<h3 id="popular-bare-metal-frameworks">Popular Bare-Metal Frameworks</h3>
+<table>
+<thead>
+<tr>
+<th>Framework</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Circle</strong></td>
+<td>C++ library for ARM bare-metal; supports Pi Zero</td>
+</tr>
+<tr>
+<td><strong>bcm2835</strong></td>
+<td>Community library for peripheral access</td>
+</tr>
+<tr>
+<td><strong>PiOS</strong></td>
+<td>Educational monolithic kernel for Pi</td>
+</tr>
+<tr>
+<td><strong>U-Boot</strong></td>
+<td>Can be used as a secondary bootloader</td>
+</tr>
+</tbody>
+</table>
+<h3 id="u-boot-on-pi-zero-zero-w">U-Boot on Pi Zero / Zero W</h3>
+<ul>
+<li>U-Boot can be compiled for Pi Zero (<code>rpi_zero</code> or <code>rpi_0_w</code> config)</li>
+<li><strong>Build process</strong>: Cross-compile with ARM toolchain; U-Boot acts as a second-stage bootloader, loading kernels from network, USB, or SD</li>
+<li><strong>Limitations</strong>: USB support in U-Boot on BCM2835 is limited; SD card boot is most reliable</li>
+<li><strong>Community note</strong>: U-Boot support for Pi Zero W is present in modern versions (2021+), but may require device tree configuration</li>
+</ul>
+<h3 id="custom-firmware-considerations">Custom Firmware Considerations</h3>
+<ul>
+<li><strong>VideoCore binaries are closed-source</strong>: Only <code>bootcode.bin</code> and <code>start.elf</code> are provided as binaries; source is not publicly available.</li>
+<li><strong>TrustZone</strong>: The BCM2835 has a Secure Mode, but it is not publicly documented or accessible for community use.</li>
+<li><strong>Boot order</strong>: You cannot easily change the boot order to boot from USB without OTP programming (irreversible).</li>
+</ul>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi Zero / Zero W (BCM2835)</th>
+<th>Pi 1 (BCM2835)</th>
+<th>Pi 2/3 (BCM2836/7)</th>
+<th>Pi 4 (BCM2711)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>On-chip ROM bootloader</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Yes (Pi 3)</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Boot from SD required</strong></td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>⚠️ Pi 3 has ROM</td>
+<td>✅ No (EEPROM)</td>
+</tr>
+<tr>
+<td><strong>Network/PXE boot</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Pi 3B+ only</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>USB boot</strong></td>
+<td>⚠️ Limited (OTP)</td>
+<td>⚠️ Limited</td>
+<td>✅ More robust</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Boot EEPROM</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>GPU architecture</strong></td>
+<td>VideoCore IV</td>
+<td>VideoCore IV</td>
+<td>VideoCore IV</td>
+<td>VideoCore VI</td>
+</tr>
+<tr>
+<td><strong>ARM core</strong></td>
+<td>ARM11 (ARMv6)</td>
+<td>ARM11</td>
+<td>Cortex-A7/A53</td>
+<td>Cortex-A72</td>
+</tr>
+</tbody>
+</table>
+<h3 id="critical-differences-for-developers">Critical Differences for Developers</h3>
+<ul>
+<li><strong>Pi Zero vs. Pi 1</strong>: Functionally identical in boot behavior; both use external <code>bootcode.bin</code>.</li>
+<li><strong>Pi Zero vs. Pi 3</strong>: The Pi 3 (BCM2837) includes a ROM bootloader that can load <code>bootcode.bin</code> from network or USB without SD card. The Pi Zero lacks this.</li>
+<li><strong>Pi Zero vs. Pi 4</strong>: The Pi 4 has a separate bootloader EEPROM in the USB connector hub chip, allowing boot order selection via EEPROM. The Zero has no such capability.</li>
+</ul>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following topics lack comprehensive official documentation and are primarily addressed through community experimentation:</p>
+<ol>
+<li><strong>Exact ROM contents of BCM2835</strong>: Broadcom never publicly documented the internal ROM (if any) of the BCM2835. Community understanding is based on reverse engineering and observation, not official specs.</li>
+<li><strong>Secure Boot / TrustZone</strong>: The BCM2835 has a "Secure Mode" but Broadcom never released documentation on how to use it or whether it can be leveraged for trusted boot.</li>
+<li><strong>bootcode.bin source code</strong>: The <code>bootcode.bin</code> binary is closed-source. Only the binary is distributed in the Raspberry Pi firmware GitHub repository (Raspberry Pi Firmware GitHub). No source code is available.</li>
+<li><strong>USB boot reliability</strong>: Community forums report inconsistent USB boot behavior on Pi Zero, but there is no official Broadcom or Raspberry Pi documentation detailing USB controller initialization timing or limitations.</li>
+<li><strong>GPU memory split defaults</strong>: The default memory allocation between ARM and GPU is embedded in <code>start.elf</code> and not documented in detail. Users must guess or use tools like <code>vcgencmd get_mem arm</code>.</li>
+<li><strong>Recovery mode</strong>: There is no dedicated "recovery mode" button or ROM-based recovery on Pi Zero / Zero W. Recovery requires reflashing the SD card.</li>
+<li><strong>Boot speed optimization</strong>: No official documentation exists on optimizing boot time beyond basic <code>config.txt</code> tweaks (e.g., <code>boot_delay</code>, <code>disable_splash</code>).</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li><strong>RPi Boot Sequence - eLinux Wiki</strong>: Detailed multi-stage boot description</li>
+<li><strong>raspberrypi/firmware - GitHub</strong>: Official repository containing <code>bootcode.bin</code>, <code>start.elf</code>, and related binaries</li>
+<li><strong>Raspberry Pi Forums</strong>: Community discussions on USB boot, UART configuration, and bare-metal development</li>
+<li><strong>Circle Bare-Metal Framework</strong>: Community C++ library for Pi Zero</li>
+<li><strong>Raspberry Pi Device Tree Documentation</strong>: For UART overlays and configuration</li>
+</ul>
+<hr />
+<blockquote>
+<p><em>This document is community-maintained. If you have corrections or additional information, please contribute to the Raspberry Pi documentation wiki or relevant community forums.</em></p>
+</blockquote>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
