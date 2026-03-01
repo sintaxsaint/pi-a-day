@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi 500 (BCM2712) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi 500 (BCM2712) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pi500-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=373222" target="_blank" rel="noopener">Pi 5 Boot Process - Raspberry Pi Forums</a></li>
+      <li><a href="https://deepwiki.com/raspberrypi/firmware/2.1.5-raspberry-pi-5-kernel-(kernel_2712.img)" target="_blank" rel="noopener">kernel_2712.img - DeepWiki</a></li>
+      <li><a href="https://github.com/rsta2/circle/discussions/413" target="_blank" rel="noopener">Supporting Pi 5 - Circle Discussion #413</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=378931" target="_blank" rel="noopener">UART on Pi 5 GPIO 14/15 - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-500-bcm2712-bootloader-boot-process-community-documentation">Raspberry Pi 500 (BCM2712) -- Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Report Type:</strong> Community Documentation<br />
+<strong>Target Hardware:</strong> Raspberry Pi 500 (BCM2712)<br />
+<strong>Last Updated:</strong> 2025</p>
+<hr />
+<blockquote>
+<p><strong>Note on Scope:</strong> The Raspberry Pi 500 uses the same BCM2712 processor as the Raspberry Pi 5, in a keyboard-integrated form factor. This document covers the boot process as it applies to the Pi 500; where behavior is identical to the Pi 5, it is noted as such.</p>
+</blockquote>
+<hr />
+<h2 id="1-overview-of-the-bcm2712-boot-sequence">1. Overview of the BCM2712 Boot Sequence</h2>
+<p>The BCM2712 boot sequence on the Raspberry Pi 500 proceeds through several distinct stages, from power-on to kernel handoff. Unlike earlier Raspberry Pi models, the Pi 500 does not rely on bootcode.bin on the SD card; all firmware resides in SPI flash.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Power-On / POR Reset</strong>
+   - The system emerges from power-on reset. Execution begins on the VideoCore VI (VPU) processor, which contains a mask ROM that cannot be modified.</p>
+</li>
+<li>
+<p><strong>VPU Boot ROM Execution</strong>
+   - The VPU executes the built-in mask ROM, which contains the first-stage bootloader.
+   - <em>Source: Raspberry Pi Forums – "Pi5 Boot Process" (cleverca22)</em></p>
+</li>
+<li>
+<p><strong>SPI Flash Loader</strong>
+   - The boot ROM reads a <strong>tagged binary blob</strong> from the SPI flash memory chip.
+   - This blob is stored in EEPROM on the board and is not user-editable without specialized tools.</p>
+</li>
+<li>
+<p><strong>LPDDR4 Memory Initialization</strong>
+   - The loaded blob initializes the LPDDR4 memory controller, bringing the system RAM online.
+   - <em>Source: Raspberry Pi Forums – "Pi5 Boot Process" (cleverca22)</em></p>
+</li>
+<li>
+<p><strong>bootmain.elf Loading</strong>
+   - The blob loads <code>bootmain.elf</code> from SPI flash and transfers execution to it.
+   - <em>Source: Raspberry Pi Forums – "Pi5 Boot Process" (cleverca22)</em></p>
+</li>
+<li>
+<p><strong>Boot Configuration Reading</strong>
+   - <code>bootmain.elf</code> reads <code>bootconf.txt</code> (also held in SPI flash), which contains the <strong>BOOT_ORDER</strong> directive and other boot-time parameters.
+   - <em>Source: Raspberry Pi Forums – "Pi5 Boot Process" (cleverca22)</em></p>
+</li>
+<li>
+<p><strong>Boot Device Selection (BOOT_ORDER)</strong>
+   - Based on the <code>BOOT_ORDER</code> setting, the firmware attempts to boot from configured media (SD card, USB, network).
+   - <em>Source: Raspberry Pi Forums – "Pi5 Boot Process" (cleverca22)</em></p>
+</li>
+<li>
+<p><strong>Kernel Handoff</strong>
+   - For Linux: The firmware loads <code>kernel8.img</code>, the device tree blob (e.g., <code>bcm2712-rpi-500-b.dtb</code>), and any initramfs.
+   - For bare-metal: The firmware loads the user-specified kernel image to the address defined in <code>config.txt</code> and transfers control.
+   - <em>Source: Community experimentation (satyria, Fridux)</em></p>
+</li>
+</ol>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<p>Unlike earlier Raspberry Pi models, the Pi 500 stores all boot firmware in <strong>SPI flash EEPROM</strong> on the board. No boot files are required on the SD card for basic operation, though configuration files are needed.</p>
+<h3 id="firmware-components">Firmware Components</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Location</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot ROM (first stage)</td>
+<td>VPU mask ROM</td>
+<td>Cannot be modified</td>
+</tr>
+<tr>
+<td>Tagged blob</td>
+<td>SPI flash EEPROM</td>
+<td>Contains memory init and second-stage loader</td>
+</tr>
+<tr>
+<td>bootmain.elf</td>
+<td>SPI flash EEPROM</td>
+<td>Second-stage bootloader</td>
+</tr>
+<tr>
+<td>bootconf.txt</td>
+<td>SPI flash EEPROM</td>
+<td>Contains BOOT_ORDER and related settings</td>
+</tr>
+<tr>
+<td>start.elf / fixup.dat</td>
+<td><strong>Not used</strong></td>
+<td>These files are only for Pi 0–4; Pi 5/500 does not use them</td>
+</tr>
+<tr>
+<td>start4.elf / fixup4.dat</td>
+<td><strong>Not used</strong></td>
+<td>Pi 4-specific; replaced by SPI flash firmware</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><em>"start.elf and fixup.dat are only valid on the pi0-pi3... and pi5 just doesnt need any elf or dat, its all in SPI flash."</em><br />
+— cleverca22, Raspberry Pi Forums</p>
+</blockquote>
+<h3 id="sd-card-requirements">SD Card Requirements</h3>
+<p>For a minimal boot, the SD card must contain:</p>
+<ol>
+<li><strong><code>config.txt</code></strong> – Required. Specifies kernel location and other boot options.</li>
+<li><strong>Device Tree Blob</strong> – Required for Linux. Typically <code>bcm2712-rpi-500-b.dtb</code> (or <code>bcm2712-rpi-5-b.dtb</code> as a substitute).</li>
+<li><strong>Kernel image</strong> – <code>kernel8.img</code> is the default; custom names can be specified in <code>config.txt</code>.</li>
+</ol>
+<blockquote>
+<p><em>"It's true that only bcm2712-rpi-5-b.dtb and config.txt are needed on the SD card."</em><br />
+— satyria, Raspberry Pi Forums</p>
+<p><em>"Actually you only need config.txt to boot a Pi 5, in addition to your kernel / bare metal application which should be named kernel8.img by default."</em><br />
+— Fridux, Raspberry Pi Forums</p>
+</blockquote>
+<h3 id="minimal-configtxt-for-bare-metal">Minimal config.txt for Bare-Metal</h3>
+<pre><code class="language-ini">kernel_address=0x80000
+kernel=mykernel.img
+os_check=0
+</code></pre>
+<ul>
+<li><code>kernel_address=0x80000</code> — Specifies the load address. Without this, the firmware may load the image to <code>0x200000</code> and attempt Linux-specific setup.</li>
+<li><code>os_check=0</code> — Disables OS validation, allowing bare-metal programs to execute correctly.</li>
+<li><em>Source: Community experimentation (Fridux, rsta2)</em></li>
+</ul>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>The BCM2712 on the Pi 500 supports multiple boot modes, configured via the <code>BOOT_ORDER</code> setting in SPI flash. The default boot order can be modified using the <code>raspi-config</code> tool or by editing the SPI flash boot configuration.</p>
+<h3 id="supported-boot-modes">Supported Boot Modes</h3>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>Description</th>
+<th>Availability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>SD Card</strong></td>
+<td>Boot from microSD card inserted in the onboard slot</td>
+<td>Default primary</td>
+</tr>
+<tr>
+<td><strong>USB</strong></td>
+<td>Boot from USB mass storage device (USB flash drive, SSD, HDD)</td>
+<td>Supported</td>
+</tr>
+<tr>
+<td><strong>Network / PXE</strong></td>
+<td>Boot over Ethernet using PXE</td>
+<td>Supported (confirmed by Circle community)</td>
+</tr>
+<tr>
+<td><strong>SPI Flash</strong></td>
+<td>Fallback; contains bootloader itself</td>
+<td>Always available as source of firmware</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><em>"I managed to merge this into circle-stdlib... PS: btw, I'm booting over the network - easier workflow for me!"</em><br />
+— pottendo, GitHub Circle Discussion #413</p>
+</blockquote>
+<h3 id="boot_order-configuration">BOOT_ORDER Configuration</h3>
+<p>The <code>BOOT_ORDER</code> setting in <code>bootconf.txt</code> (stored in SPI flash) determines the boot priority. Common values include:</p>
+<ul>
+<li><code>0xf461</code> — SD → USB → Network (example)</li>
+<li><code>0x1</code> — SD card only</li>
+<li>Full documentation is maintained by the Raspberry Pi community; official documentation is limited.</li>
+</ul>
+<h3 id="notes-on-boot-mode-quirks">Notes on Boot Mode Quirks</h3>
+<ul>
+<li><strong>SD card must be present</strong> for the firmware to consider the SD boot mode, even if booting from USB.</li>
+<li><strong>USB boot</strong> requires the USB mass storage device to contain a valid FAT filesystem with <code>config.txt</code>, device tree blob, and kernel image.</li>
+<li><strong>Network boot</strong> requires a DHCP server and TFTP server; the Pi 500 must have network boot enabled in the EEPROM configuration.</li>
+</ul>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<p>The Raspberry Pi 500 has a dedicated UART connector that differs from previous models. There are important quirks for bare-metal and serial console access.</p>
+<h3 id="default-serial-console">Default Serial Console</h3>
+<ul>
+<li>The default serial console on Pi 5/500 is on a <strong>dedicated UART connector</strong> (labeled on the board), not the GPIO pins.</li>
+<li>This serial device is <strong><code>ttyS11</code></strong> by default.</li>
+<li><em>Source: GitHub Circle Discussion #413 (rsta2)</em></li>
+</ul>
+<h3 id="using-gpio-uart-ttys1">Using GPIO UART (ttyS1)</h3>
+<p>To use the standard UART on GPIO pins 14/15 (the legacy behavior used on Pi 0–4), add the following to your <code>config.txt</code>:</p>
+<pre><code class="language-ini">enable_uart=1
+</code></pre>
+<p>Or, for bare-metal development with Circle:</p>
+<pre><code class="language-ini">DEFINE += -DSERIAL_DEVICE_DEFAULT=0
+</code></pre>
+<blockquote>
+<p><em>"On the RPi 5 the serial console is by default the dedicated UART connector ('ttyS11'). If you want to use the UART at GPIO pins 14/15 ('ttyS1') you have to add the following option to Config.mk: DEFINE += -DSERIAL_DEVICE_DEFAULT=0"</em><br />
+— rsta2, GitHub Circle Discussion #413</p>
+</blockquote>
+<h3 id="physical-connector-notes">Physical Connector Notes</h3>
+<ul>
+<li>The dedicated UART connector is located near the GPIO header on the Pi 500 board.</li>
+<li>Some passive cooling solutions may obscure access to this connector.</li>
+<li><em>Source: GitHub Circle Discussion #413 (pottendo)</em></li>
+</ul>
+<h3 id="baud-rate-and-settings">Baud Rate and Settings</h3>
+<ul>
+<li>Default baud rate: <strong>115200</strong></li>
+<li>8N1 (8 data bits, no parity, 1 stop bit)</li>
+</ul>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="development-considerations">Development Considerations</h3>
+<p>The Pi 500 supports bare-metal development, but there are specific requirements and tooling considerations.</p>
+<h3 id="required-files-for-bare-metal-boot">Required Files for Bare-Metal Boot</h3>
+<p>As confirmed by community experimentation:</p>
+<ol>
+<li>
+<p><strong><code>config.txt</code></strong> — with at minimum:
+   <code>ini
+   kernel_address=0x80000
+   kernel=mykernel.img
+   os_check=0</code></p>
+</li>
+<li>
+<p><strong>Device tree blob</strong> — <code>bcm2712-rpi-5-b.dtb</code> (or a compatible variant) is required for Linux; for pure bare-metal with no device tree, this may be omitted but behavior varies.</p>
+</li>
+<li>
+<p><strong>Kernel image</strong> — Must be a 64-bit ARM (AArch64) ELF or raw binary. The default name is <code>kernel8.img</code>.</p>
+</li>
+</ol>
+<blockquote>
+<p><em>"kernel8.img is the default name, but you'll have to add os_check=0 to config.txt, as otherwise it assumes that you're booting Linux, so it will run your code from 0x200000 instead of 0x80000."</em><br />
+— Fridux, Raspberry Pi Forums</p>
+</blockquote>
+<h3 id="toolchain-recommendations">Toolchain Recommendations</h3>
+<ul>
+<li>Use <strong>GCC 12.2.Rel1</strong> or later for AArch64 bare-metal development.</li>
+<li><em>Source: GitHub Circle Discussion #413 (rsta2)</em></li>
+</ul>
+<h3 id="circle-os-support">Circle OS Support</h3>
+<p>The Circle bare-metal library provides experimental support for Raspberry Pi 5 (and by extension, Pi 500). Key notes:</p>
+<ul>
+<li>Branch: <code>rpi5</code> — available in the Circle repository.</li>
+<li>Requires <code>kernel_address=0x80000</code> in <code>config.txt</code>.</li>
+<li>For headless operation (no HDMI), add:
+  <code>make
+  DEFINE += -DSCREEN_HEADLESS</code></li>
+<li><em>Source: GitHub Circle Discussion #413 (rsta2)</em></li>
+</ul>
+<h3 id="usb-and-network-in-bare-metal">USB and Network in Bare-Metal</h3>
+<ul>
+<li>USB and Ethernet support in bare-metal environments requires additional driver development.</li>
+<li>The Circle library has conditional compilation (<code>#if RASPPI &lt;= 4</code>) that excludes Pi 5 support for some peripherals; community adoption is ongoing.</li>
+<li><em>Source: GitHub Circle Discussion #413 (pottendo)</em></li>
+</ul>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<p>The BCM2712-based Pi 500 differs significantly from both the Pi 4 (BCM2711) and earlier models.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 0–3 (BCM2835/BCM2837)</th>
+<th>Pi 4 (BCM2711)</th>
+<th>Pi 5 / Pi 500 (BCM2712)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot firmware location</td>
+<td>SD card (<code>bootcode.bin</code>)</td>
+<td>SD card / EEPROM</td>
+<td>SPI flash EEPROM only</td>
+</tr>
+<tr>
+<td>Boot ROM</td>
+<td>On VPU</td>
+<td>On VPU</td>
+<td>On VPU (updated)</td>
+</tr>
+<tr>
+<td>Memory initialization</td>
+<td>By firmware from SD</td>
+<td>By firmware from SD/EEPROM</td>
+<td>By blob from SPI flash</td>
+</tr>
+<tr>
+<td><code>start.elf</code> / <code>fixup.dat</code></td>
+<td>Required</td>
+<td>Required</td>
+<td><strong>Not used</strong></td>
+</tr>
+<tr>
+<td><code>start4.elf</code> / <code>fixup4.dat</code></td>
+<td>N/A</td>
+<td>Required</td>
+<td><strong>Not used</strong></td>
+</tr>
+<tr>
+<td>Boot modes</td>
+<td>SD / USB / network</td>
+<td>SD / USB / network / EEPROM</td>
+<td>SD / USB / network</td>
+</tr>
+<tr>
+<td>Default kernel</td>
+<td><code>kernel.img</code> (32-bit)</td>
+<td><code>kernel7l.img</code> (32-bit), <code>kernel8.img</code> (64-bit)</td>
+<td><code>kernel8.img</code> (64-bit only)</td>
+</tr>
+<tr>
+<td>Serial console</td>
+<td>UART on GPIO 14/15 (ttyS0)</td>
+<td>UART on GPIO 14/15 (ttyS0)</td>
+<td>Dedicated UART (ttyS11) by default</td>
+</tr>
+<tr>
+<td>Device tree</td>
+<td>Optional for Linux</td>
+<td>Required for Linux</td>
+<td>Required for Linux</td>
+</tr>
+</tbody>
+</table>
+<h3 id="summary-of-differences">Summary of Differences</h3>
+<ol>
+<li><strong>No bootcode.bin or start*.elf files</strong> — Firmware is entirely in SPI flash; the SD card is only a data partition.</li>
+<li><strong>New boot flow</strong> — VPU → SPI blob → bootmain.elf → bootconf.txt → media.</li>
+<li><strong>64-bit only</strong> — No 32-bit boot path; all kernels must be AArch64.</li>
+<li><strong>Changed serial console</strong> — Default is now <code>ttyS11</code> on a dedicated connector, not the legacy GPIO UART.</li>
+<li><strong>Network boot supported</strong> — Confirmed working in the Circle community; PXE is functional.</li>
+</ol>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following areas lack comprehensive official documentation and are either inferred from community experimentation or remain undocumented:</p>
+<h3 id="boot-rom-details">Boot ROM Details</h3>
+<ul>
+<li>The exact capabilities and limitations of the VPU mask ROM are not publicly documented by Raspberry Pi Ltd.</li>
+<li>It is unclear whether the boot ROM supports fallback to USB device mode or other exotic boot modes.</li>
+</ul>
+<h3 id="spi-flash-boot-configuration">SPI Flash Boot Configuration</h3>
+<ul>
+<li>The full format and options available in <code>bootconf.txt</code> stored in SPI flash are not officially documented.</li>
+<li>The procedure to modify SPI flash contents (beyond using <code>raspi-config</code> or official recovery tools) is not publicly documented.</li>
+</ul>
+<h3 id="eeprom-update-process">EEPROM Update Process</h3>
+<ul>
+<li>The process for updating the SPI flash firmware (EEPROM) is not fully documented for end users, though Raspberry Pi provides a recovery image mechanism.</li>
+<li>The exact contents and version scheme of the SPI flash firmware are not publicly documented.</li>
+</ul>
+<h3 id="device-tree-blob-selection">Device Tree Blob Selection</h3>
+<ul>
+<li>It is unclear how the firmware selects the correct device tree blob; the mechanism (e.g., board revision reading) is not officially documented.</li>
+<li>The exact naming convention for device tree blobs on Pi 500 (<code>bcm2712-rpi-500-b.dtb</code> vs. <code>bcm2712-rpi-5-b.dtb</code>) is not formally documented.</li>
+</ul>
+<h3 id="network-boot-detailed-requirements">Network Boot Detailed Requirements</h3>
+<ul>
+<li>While network boot is confirmed functional, the exact DHCP/TFTP requirements and limitations are not fully documented.</li>
+<li>Whether network boot supports VLANs, IPv6, or secure boot is unknown.</li>
+</ul>
+<h3 id="bare-metal-handoff-details">Bare-Metal Handoff Details</h3>
+<ul>
+<li>The exact register state at kernel handoff (what registers contain what values, stack setup, MMU state) is not officially documented.</li>
+<li>Whether a device tree is required for bare-metal handoff is not clearly documented.</li>
+</ul>
+<h3 id="usb-boot-mass-storage-support">USB Boot Mass Storage Support</h3>
+<ul>
+<li>Which USB mass storage classes are supported is not officially documented.</li>
+<li>Boot from USB hubs is not clearly documented.</li>
+</ul>
+<h3 id="boot-performance-and-timing">Boot Performance and Timing</h3>
+<ul>
+<li>No official documentation exists on boot timing, SPI flash read speeds, or boot stage durations.</li>
+</ul>
+<hr />
+<h2 id="appendix-quick-reference-for-bare-metal-development">Appendix: Quick Reference for Bare-Metal Development</h2>
+<h3 id="minimal-sd-card-contents">Minimal SD Card Contents</h3>
+<pre><code>├── config.txt
+├── bcm2712-rpi-5-b.dtb   # (or bcm2712-rpi-500-b.dtb if available)
+└── kernel8.img           # or custom name specified in config.txt
+</code></pre>
+<h3 id="minimal-configtxt">Minimal config.txt</h3>
+<pre><code class="language-ini">kernel_address=0x80000
+kernel=kernel8.img
+os_check=0
+</code></pre>
+<h3 id="uart-selection-summary">UART Selection Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Desired UART</th>
+<th>Configuration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Default (ttyS11, dedicated connector)</td>
+<td>No extra config needed</td>
+</tr>
+<tr>
+<td>GPIO pins 14/15 (ttyS1)</td>
+<td>Add <code>enable_uart=1</code> to config.txt (Linux) or <code>-DSERIAL_DEVICE_DEFAULT=0</code> (Circle)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="references">References</h2>
+<ol>
+<li>Raspberry Pi Forums – "Pi5 Boot Process" (thread), July 2024. https://forums.raspberrypi.com/viewtopic.php?t=373222</li>
+<li>satyria – bare-metal Pi 5 tutorial (German), 2024. https://satyria.de/arm/</li>
+<li>GitHub – Circle bare-metal library, Discussion #413 ("Supporting Pi 5"), November 2023 – February 2024. https://github.com/rsta2/circle/discussions/413</li>
+<li>Raspberry Pi Ltd. – Raspberry Pi 5 documentation (official). https://www.raspberrypi.com/documentation/computers/raspberry-pi-5.html</li>
+</ol>
+<hr />
+<p>*This document is community-generated and may contain inferences or unverified details.</p>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
