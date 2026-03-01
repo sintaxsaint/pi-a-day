@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi 1 (BCM2835) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi 1 (BCM2835) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pi1-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-boot-modes" target="_blank" rel="noopener">Raspberry Pi Boot Modes - Official Docs</a></li>
+      <li><a href="https://elinux.org/RPi_Software" target="_blank" rel="noopener">RPi Boot Sequence - eLinux Wiki</a></li>
+      <li><a href="https://github.com/raspberrypi/firmware" target="_blank" rel="noopener">raspberrypi/firmware - GitHub (bootcode.bin era)</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=6854" target="_blank" rel="noopener">How the Pi boots - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-1-bcm2835-bootloader-boot-process-community-documentation">Raspberry Pi 1 (BCM2835) -- Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Target Hardware:</strong> Raspberry Pi 1 Model A, Model B, Model A+, Model B+ (all variants using BCM2835 SoC)</p>
+<hr />
+<h2 id="1-overview-of-the-bcm2835-boot-sequence">1. Overview of the BCM2835 Boot Sequence</h2>
+<p>The BCM2835 employs a distinctive boot architecture in which the <strong>VideoCore GPU</strong> serves as the primary boot processor, with the ARM1176JZF-S CPU being activated only after the GPU has prepared the system. This is fundamentally different from most embedded platforms where the main CPU handles all boot stages.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Component</th>
+<th>Executed On</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>First-stage ROM bootloader</td>
+<td>ARM1176 (ROM)</td>
+<td>Internal SoC mask ROM</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>bootcode.bin</code></td>
+<td>GPU (VideoCore)</td>
+<td>SD card FAT partition</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>start.elf</code> (or <code>start4.elf</code> for Pi 4, not applicable here)</td>
+<td>GPU (VideoCore)</td>
+<td>SD card FAT partition</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Kernel / OS</td>
+<td>ARM1176</td>
+<td>SD card or other media</td>
+</tr>
+</tbody>
+</table>
+<h3 id="detailed-sequence">Detailed Sequence</h3>
+<ol>
+<li>
+<p><strong>Power-On Reset</strong>
+   - The BCM2835 SoC powers on with the GPU core active and the ARM core held in reset
+   - The internal ROM bootloader (mask ROM, not modifiable) begins execution on the GPU</p>
+</li>
+<li>
+<p><strong>SD Card Detection and Loading</strong>
+   - The ROM bootloader scans the SD card for a FAT16 or FAT32 boot partition
+   - It reads the first <code>bootcode.bin</code> found (typically 64KB or less in early versions) into the GPU's L2 cache or small on-chip SRAM
+   - This loader contains the SDRAM initialization code specific to the Pi 1 hardware</p>
+</li>
+</ol>
+<p><em>(Source: Raspberry Pi GitHub firmware repository contains bootcode.bin in the /boot directory)</em></p>
+<ol start="3">
+<li>
+<p><strong>SDRAM Initialization (bootcode.bin)</strong>
+   - <code>bootcode.bin</code> executes on the GPU and initializes the external SDRAM
+   - This is a critical step -- without working SDRAM, the Pi cannot proceed to load larger firmware components or the Linux kernel
+   - The memory controller is configured with timing parameters specific to the SDRAM chips used on the Pi 1 board</p>
+</li>
+<li>
+<p><strong>Loading start.elf</strong>
+   - Once SDRAM is available, <code>bootcode.bin</code> loads <code>start.elf</code> (the main VideoCore firmware) into SDRAM
+   - <code>start.elf</code> is significantly larger (several MB) and contains:</p>
+<ul>
+<li>Graphics processing firmware</li>
+<li>Audio/video codecs</li>
+<li>The ARM bootloader logic</li>
+<li>Device tree blob handling</li>
+</ul>
+</li>
+<li>
+<p><strong>Configuration Reading (config.txt)</strong>
+   - <code>start.elf</code> reads <code>config.txt</code> from the boot partition to configure boot options
+   - This file controls memory split (GPU vs ARM), video settings, enable_uart, overclocking, and device tree parameters</p>
+</li>
+<li>
+<p><strong>Kernel Loading</strong>
+   - <code>start.elf</code> loads <code>kernel.img</code> (or a named kernel such as <code>kernel7.img</code> on later models, but Pi 1 uses <code>kernel.img</code>) into memory at address 0x00008000
+   - It prepares either ATAGS (for older kernels) or a device tree blob (DTB) in memory
+   - For Pi 1, the default is ATAGS at address 0x100</p>
+</li>
+<li>
+<p><strong>ARM Handoff</strong>
+   - <code>start.elf</code> releases the ARM1176JZF-S from reset
+   - The ARM CPU begins execution at address 0x00008000
+   - Boot is complete; the Linux kernel (or bare-metal firmware) takes over</p>
+</li>
+</ol>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="firmware-files-on-the-sd-card-boot-partition">Firmware Files on the SD Card Boot Partition</h3>
+<p>The Raspberry Pi 1 requires a FAT-formatted boot partition (typically the first partition, type 0x0C FAT32 or 0x0E FAT16) containing the following files:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Size (approx.)</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>~24KB–64KB</td>
+<td>Second-stage bootloader; SDRAM init; loads start.elf</td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>~1–4MB</td>
+<td>Main GPU firmware; loads kernel/config; configures ARM handoff</td>
+</tr>
+<tr>
+<td><code>fixup.dat</code></td>
+<td>~4KB–8KB</td>
+<td>Memory fixup/relocation table used by start.elf</td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Text</td>
+<td>Boot configuration (user-editable)</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Text</td>
+<td>Kernel command line arguments</td>
+</tr>
+<tr>
+<td><code>kernel.img</code></td>
+<td>Varies</td>
+<td>ARM executable kernel (or bare-metal program)</td>
+</tr>
+<tr>
+<td><code>*.dtb</code></td>
+<td>Varies</td>
+<td>Device tree blobs (optional for Pi 1)</td>
+</tr>
+</tbody>
+</table>
+<p><em>(Source: GitHub raspberrypi/firmware /boot directory structure)</em></p>
+<h3 id="boot-order-priority">Boot Order Priority</h3>
+<p>The ROM bootloader searches for <code>bootcode.bin</code> in the following locations (in order):</p>
+<ol>
+<li>SD card (primary boot mode)</li>
+<li>If not found, it attempts USB (with additional requirements)</li>
+<li>Network boot is <strong>not</strong> natively supported by the BCM2835 ROM; this requires special bootloader modifications or an external SPI EEPROM (not present on Pi 1)</li>
+</ol>
+<h3 id="eeprom">EEPROM</h3>
+<p><strong>There is no external SPI EEPROM on the original Raspberry Pi 1 (Model A/B) or A+/B+.</strong> The bootloader resides entirely on the SD card. This is a key distinction from later Pi models (Pi 3B+, Pi 4, Pi 5) which include an external EEPROM for storing a more flexible bootloader.</p>
+<p>The boot firmware (<code>bootcode.bin</code>, <code>start.elf</code>, <code>fixup.dat</code>) is stored on the SD card's boot partition and must be present for each boot.</p>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<h3 id="sd-card-primary-and-only-native-mode">SD Card (Primary and Only Native Mode)</h3>
+<ul>
+<li><strong>Supported on all Pi 1 models:</strong> Model A, Model B, Model A+, Model B+</li>
+<li>The BCM2835 ROM bootloader natively supports SD card boot only</li>
+<li>Requires a FAT-formatted partition as the first partition</li>
+<li>Boot files must be in the root of this partition</li>
+<li>The SD card must contain a valid partition table and boot sector</li>
+</ul>
+<h3 id="usb-limitedcommunity-enabled">USB (Limited/Community-Enabled)</h3>
+<ul>
+<li><strong>USB boot is NOT natively supported by the BCM2835 ROM.</strong> The original Pi 1 cannot boot directly from USB devices without significant workarounds.</li>
+<li><strong>Community workarounds exist:</strong> Users have developed custom <code>bootcode.bin</code> variants (often called "USB boot" firmware) that allow loading from USB mass storage devices. These modified bootloaders are typically sourced from community forums or the <code>raspberrypi/firmware</code> repository's "extra" branches.</li>
+<li>USB boot requires the custom bootloader to first initialize USB (which the ROM cannot do), load <code>bootcode.bin</code> from a USB device, then proceed with SDRAM init and kernel load.</li>
+<li><strong>Important:</strong> The Pi 1 Model A+ and B+ have more robust power management that may help with USB boot reliability, but the fundamental ROM limitation remains.</li>
+</ul>
+<h3 id="networkpxe-not-natively-supported">Network/PXE (Not Natively Supported)</h3>
+<ul>
+<li>The BCM2835 <strong>does not</strong> have native PXE/network boot capability in its ROM</li>
+<li>No Ethernet boot option is available out-of-the-box</li>
+<li>Community solutions exist using modified <code>bootcode.bin</code> that implement DHCP/TFTP clients, but these are not part of the official firmware and are considered experimental on Pi 1</li>
+</ul>
+<h3 id="summary-table">Summary Table</h3>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>Native ROM Support</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SD Card</td>
+<td><strong>Yes</strong> (primary)</td>
+<td>Requires FAT partition with bootcode.bin</td>
+</tr>
+<tr>
+<td>USB</td>
+<td><strong>No</strong></td>
+<td>Requires custom community bootloader</td>
+</tr>
+<tr>
+<td>Network/PXE</td>
+<td><strong>No</strong></td>
+<td>Requires custom community bootloader</td>
+</tr>
+<tr>
+<td>EEPROM</td>
+<td><strong>No</strong></td>
+<td>No external EEPROM on Pi 1</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<h3 id="default-uart-configuration">Default UART Configuration</h3>
+<ul>
+<li>The BCM2835 has two UARTs:</li>
+<li><strong>UART0 (PL011)</strong> - Full-featured, used by default for serial console</li>
+<li><strong>UART1 (mini UART)</strong> - Limited features, lower performance</li>
+<li>On Pi 1, the <strong>PL011 UART</strong> is mapped to the GPIO pins 14 (TXD) and 15 (RXD) by default</li>
+<li>Default baud rate: <strong>115200 bps</strong>, 8N1 (8 data bits, no parity, 1 stop bit)</li>
+</ul>
+<h3 id="enabling-serial-console">Enabling Serial Console</h3>
+<ul>
+<li>By default, the Pi 1 may or may not output to UART depending on the firmware version and <code>config.txt</code> settings</li>
+<li>To enable serial console output:
+  <code>enable_uart=1</code>
+  in <code>config.txt</code> (or <code>enable_uart=0</code> to disable)</li>
+<li>The serial console is controlled by <code>start.elf</code> firmware; earlier firmware versions had the UART enabled by default, while newer versions may require explicit enablement</li>
+</ul>
+<h3 id="hardware-connections">Hardware Connections</h3>
+<table>
+<thead>
+<tr>
+<th>GPIO Pin</th>
+<th>Function</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPIO 14</td>
+<td>UART0 TXD</td>
+<td>Transmit data</td>
+</tr>
+<tr>
+<td>GPIO 15</td>
+<td>UART0 RXD</td>
+<td>Receive data</td>
+</tr>
+<tr>
+<td>GPIO 17</td>
+<td>Optional: RTS/CTS</td>
+<td>Not used by default</td>
+</tr>
+<tr>
+<td>Ground</td>
+<td>GND</td>
+<td>Reference ground</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>A USB-to-serial TTL adapter (e.g., FTDI, CP2102) set to 3.3V logic is required</li>
+<li><strong>Warning:</strong> Do NOT connect 5V serial adapters directly; use 3.3V logic level or level shifters to avoid damaging the BCM2835's GPIO</li>
+</ul>
+<h3 id="quirks-on-raspberry-pi-1">Quirks on Raspberry Pi 1</h3>
+<ol>
+<li>
+<p><strong>No automatic console on early firmware:</strong> Early versions of <code>bootcode.bin</code>/<code>start.elf</code> did not automatically output to UART. Users reported needing specific firmware versions or <code>config.txt</code> options to see boot messages.</p>
+</li>
+<li>
+<p><strong>Baud rate variation:</strong> Some early firmware used 9600 baud by default. Modern firmware uses 115200 baud.</p>
+</li>
+<li>
+<p><strong>HDMI/Composite video override:</strong> The GPU boot process outputs to video first; serial console may be secondary. If no video output is connected, serial console may still show boot messages.</p>
+</li>
+<li>
+<p><strong>GPIO pin changes on Model A+ / B+:</strong> The header layout remains the same, but power management differences may affect UART stability (especially with certain USB hubs or power conditions).</p>
+</li>
+<li>
+<p><strong>Mini UART vs PL011:</strong> On Pi 1, the PL011 is the primary. The mini UART (UART1) is available on GPIO 14/15 if the PL011 is reconfigured, but this is rarely used.</p>
+</li>
+</ol>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-up Notes</h2>
+<h3 id="u-boot">U-Boot</h3>
+<ul>
+<li>U-Boot can be used as a second-stage bootloader on Pi 1, loaded after <code>start.elf</code> hands off to ARM</li>
+<li>However, because <code>start.elf</code> already handles memory initialization and kernel loading, using U-Boot on Pi 1 is less common than on other embedded platforms</li>
+<li>To use U-Boot: compile <code>u-boot.bin</code> for Raspberry Pi, rename to <code>kernel.img</code>, place on SD card; U-Boot will then load the final OS</li>
+<li>U-Boot on Pi 1 requires a device tree blob (DTB) or ATAGS setup matching the BCM2835 hardware</li>
+</ul>
+<h3 id="circle-bare-metal-c-framework">Circle (Bare-Metal C++ Framework)</h3>
+<ul>
+<li>Circle is a C++ bare-metal framework for Raspberry Pi (supports Pi 1 through Pi 3)</li>
+<li>For Pi 1 (BCM2835), Circle provides:</li>
+<li>Direct hardware access without an OS</li>
+<li>SDRAM initialization (or uses the one set up by start.elf)</li>
+<li>GPU initialization (optional, via circular buffer)</li>
+<li>USB host/device support</li>
+<li>Basic peripherals (GPIO, timer, UART, interrupt controller)</li>
+<li>Circle can run either:</li>
+<li><strong>After start.elf</strong> (using the GPU-provided memory setup), or</li>
+<li><strong>Standalone</strong> (by replacing kernel.img and providing minimal initialization)</li>
+</ul>
+<h3 id="custom-firmware-bare-metal-development">Custom Firmware / Bare-Metal Development</h3>
+<ul>
+<li>The Pi 1 is an excellent platform for bare-metal development</li>
+<li>Custom ARM code can be loaded as <code>kernel.img</code></li>
+<li>Key considerations:</li>
+<li>The ARM core starts at 0x00008000</li>
+<li>ATAGS are at 0x100 (if using device tree, DTB is passed in r2 or at a configured address)</li>
+<li>The GPU must have already initialized SDRAM (requires running start.elf)</li>
+<li>Alternative: bypass GPU entirely and write ROM-compatible code (requires different bootloader, not covered here)</li>
+</ul>
+<h3 id="linux-kernel">Linux Kernel</h3>
+<ul>
+<li>Linux kernel for Pi 1 uses the <code>bcmrpi</code> or <code>bcm2709</code> device tree (though <code>bcmrpi_defconfig</code> is typical)</li>
+<li>Kernel versions up to 6.x continue to support BCM2835 (Pi 1)</li>
+<li>The kernel is loaded by <code>start.elf</code> at the address specified in the firmware</li>
+</ul>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 1 (BCM2835)</th>
+<th>Pi 2 (BCM2836/2837)</th>
+<th>Pi 3 (BCM2837)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SoC</td>
+<td>BCM2835 (single-core ARM1176 @ 700MHz)</td>
+<td>BCM2836/2837 (quad-core Cortex-A7/A53)</td>
+<td>BCM2837 (quad-core Cortex-A53)</td>
+</tr>
+<tr>
+<td>Boot processor</td>
+<td>GPU (VideoCore)</td>
+<td>GPU (VideoCore)</td>
+<td>GPU (VideoCore)</td>
+</tr>
+<tr>
+<td>Native USB boot</td>
+<td>No (requires custom bootloader)</td>
+<td>No</td>
+<td>Yes (with OTP bit)</td>
+</tr>
+<tr>
+<td>Network boot</td>
+<td>No</td>
+<td>No</td>
+<td>Yes (with OTP bit)</td>
+</tr>
+<tr>
+<td>External EEPROM</td>
+<td>No</td>
+<td>No</td>
+<td>No (Pi 3B+ has it)</td>
+</tr>
+<tr>
+<td>64-bit support</td>
+<td>No (ARMv6)</td>
+<td>No (ARMv7)</td>
+<td>Yes (ARMv8, optional)</td>
+</tr>
+<tr>
+<td>Memory split config</td>
+<td><code>gpu_mem</code> in config.txt</td>
+<td><code>gpu_mem</code> in config.txt</td>
+<td><code>gpu_mem</code> in config.txt</td>
+</tr>
+<tr>
+<td>Default kernel</td>
+<td><code>kernel.img</code></td>
+<td><code>kernel7.img</code></td>
+<td><code>kernel7.img</code> (or kernel8 for 64-bit)</td>
+</tr>
+<tr>
+<td>Boot ROM location</td>
+<td>Mask ROM in SoC</td>
+<td>Mask ROM in SoC</td>
+<td>Mask ROM in SoC</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pi-1-model-a-b-specific-differences">Pi 1 Model A+ / B+ Specific Differences</h3>
+<ul>
+<li><strong>Reduced power consumption:</strong> Model A+ and B+ use smaller PCB and lower-power components</li>
+<li><strong>Same boot process:</strong> The boot sequence is identical to original Model A/B</li>
+<li><strong>No hardware differences in boot:</strong> All Pi 1 variants share the same BCM2835 and boot behavior</li>
+</ul>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<h3 id="community-only-or-undocumented-areas">Community-Only or Undocumented Areas</h3>
+<ol>
+<li>
+<p><strong>Exact contents of bootcode.bin:</strong> The binary is closed-source (Broadcom proprietary). Its exact initialization sequence and SDRAM timing parameters are not publicly documented. Community knowledge is derived from reverse engineering.</p>
+</li>
+<li>
+<p><strong>SD card timing and compatibility:</strong> The ROM bootloader's SD card interface is not formally documented. Some SD cards may fail to boot due to timing issues; the community maintains lists of known-working and non-working cards.</p>
+</li>
+<li>
+<p><strong>USB boot implementation details:</strong> Since USB boot requires custom/community bootloader variants, the exact method to enable it and the limitations are not officially documented.</p>
+</li>
+<li>
+<p><strong>GPU memory split internals:</strong> While <code>gpu_mem</code> in config.txt controls the split, the exact memory layout and why certain values are required are not publicly documented.</p>
+</li>
+<li>
+<p><strong>Bootloader update mechanism:</strong> There is no official "firmware update" process for Pi 1; users manually copy newer <code>bootcode.bin</code>, <code>start.elf</code>, and <code>fixup.dat</code> from the Raspberry Pi GitHub repository.</p>
+</li>
+<li>
+<p><strong>Recovery boot mode:</strong> There is no dedicated "recovery" mode button or ROM-level recovery on Pi 1; if SD card boot fails, the device is effectively bricked until a working SD card is inserted.</p>
+</li>
+<li>
+<p><strong>Device tree vs ATAGS preference:</strong> The transition from ATAGS to device tree happened across firmware versions; exact firmware versions where device tree became default are not formally documented.</p>
+</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Raspberry Pi GitHub Firmware Repository: https://github.com/raspberrypi/firmware</li>
+<li>eLinux Wiki: RPi Software (boot sequence documentation)</li>
+<li>Raspberry Pi Forums: Community discussions on boot modes, UART, and firmware</li>
+</ul>
+<hr />
+<p>*This</p>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
