@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi 2 Model B (BCM2836) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi 2 Model B (BCM2836) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pi2-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-boot-modes" target="_blank" rel="noopener">Raspberry Pi Boot Modes - Official Docs</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=6854" target="_blank" rel="noopener">How the Pi boots - Raspberry Pi Forums</a></li>
+      <li><a href="https://elinux.org/RPi_U-Boot" target="_blank" rel="noopener">RPi U-Boot - eLinux Wiki</a></li>
+      <li><a href="https://github.com/raspberrypi/firmware" target="_blank" rel="noopener">raspberrypi/firmware - GitHub</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-2-model-b-bcm2836-bootloader-boot-process-community-documentation">Raspberry Pi 2 Model B (BCM2836) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Document Scope</strong>: Raspberry Pi 2 Model B rev 1.0 and rev 1.1 (BCM2836)<br />
+<strong>Audience</strong>: Embedded developers, firmware engineers, and community contributors<br />
+<strong>Status</strong>: Community-compiled; some areas lack official documentation  </p>
+<hr />
+<h2 id="1-overview-of-the-bcm2836-boot-sequence">1. Overview of the BCM2836 Boot Sequence</h2>
+<p>The Raspberry Pi 2 Model B uses a unique <strong>GPU-first boot architecture</strong>. Unlike typical ARM SoCs where the CPU boots first, the BCM2836 (and its predecessor BCM2835) boots the VideoCore IV GPU, which then initializes and boots the ARM cores. This is a distinctive characteristic of all Raspberry Pi models prior to the Raspberry Pi 4.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Power-On / Reset</strong>
+   - On power-on, the BCM2836's internal boot ROM (masked into the silicon) executes first.
+   - The boot ROM's primary task is to locate and load the next-stage bootloader from external storage.</p>
+</li>
+<li>
+<p><strong>Boot ROM Searches for <code>bootcode.bin</code></strong>
+   - The boot ROM scans for a FAT-formatted SD card (or other boot media) in a fixed order.
+   - It reads the first partition, looking for a file named <code>bootcode.bin</code> in the root directory.
+   - <strong>Note</strong>: If <code>bootcode.bin</code> is not found, the boot sequence halts with no video output and the ACT LED remains off.
+   - Source: <code>raspberrypi/firmware</code> GitHub repository describes <code>bootcode.bin</code> as "the GPU firmwares and bootloader" (raspberrypi/firmware)</p>
+</li>
+<li>
+<p><strong><code>bootcode.bin</code> Executes on GPU</strong>
+   - Loaded into the GPU's L2 cache or small internal RAM.
+   - This stage initializes the SDRAM (memory controller) and prepares the system for loading the main firmware.
+   - It also performs early GPIO pin setup and basic power management.</p>
+</li>
+<li>
+<p><strong>Loading of <code>start.elf</code></strong>
+   - After SDRAM is available, <code>bootcode.bin</code> loads <code>start.elf</code> (or a variant — see Section 2) into SDRAM.
+   - <code>start.elf</code> is a large binary blob containing the VideoCore firmware, which includes:</p>
+<ul>
+<li>Graphics processing initialisation</li>
+<li>Framebuffer setup</li>
+<li>Hardware initialization (USB, Ethernet, etc.)</li>
+<li>Device Tree blob (<code>.dtb</code>) loading</li>
+<li>ARM kernel loading and handoff</li>
+</ul>
+</li>
+<li>
+<p><strong>Device Tree and Configuration Loading</strong>
+   - The firmware reads <code>config.txt</code> for board configuration (GPU memory split, overclocking, device tree parameters, etc.).
+   - It reads <code>cmdline.txt</code> to build the kernel command line.
+   - It loads the appropriate <code>.dtb</code> file (e.g., <code>bcm2709-rpi-2-b.dtb</code>) for the BCM2836.</p>
+</li>
+<li>
+<p><strong>Kernel Load and ARM Handoff</strong>
+   - The firmware loads <code>kernel.img</code> (or a custom kernel filename) into memory at a fixed address.
+   - It configures the ARM core(s) with the device tree pointer, ATAGS (if used), and any initrd.
+   - The GPU releases the ARM cores from reset, and execution begins at the kernel's entry point.
+   - The GPU continues running for video/graphics services but is no longer in the boot path.</p>
+</li>
+</ol>
+<h3 id="summary-of-memory-map-bcm2836">Summary of Memory Map (BCM2836)</h3>
+<table>
+<thead>
+<tr>
+<th>Address Range</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x0000_0000–0x0FFF_FFFF</td>
+<td>Boot ROM (internal)</td>
+</tr>
+<tr>
+<td>0x2000_0000–0x20FF_FFFF</td>
+<td>SDRAM (1 GB on Pi 2 B)</td>
+</tr>
+<tr>
+<td>0x3F00_0000–0x3FFFFFFF</td>
+<td>Peripheral registers (BCM2836)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="firmware-files-on-the-boot-partition">Firmware Files on the Boot Partition</h3>
+<p>The SD card's FAT partition must contain at minimum the following files for a successful boot:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>Second-stage bootloader; runs on the GPU. Initializes SDRAM.</td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>Main GPU firmware blob; handles boot configuration and kernel handoff.</td>
+</tr>
+<tr>
+<td><code>fixup.dat</code></td>
+<td>Memory fixup data for <code>start.elf</code>; must match the specific <code>start.elf</code> version.</td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Board configuration (GPU memory, overclock, DTB overlays, etc.).</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command line arguments.</td>
+</tr>
+<tr>
+<td><code>kernel.img</code></td>
+<td>Linux kernel (or custom firmware) for the ARM cores.</td>
+</tr>
+<tr>
+<td><code>*.dtb</code></td>
+<td>Device Tree Blob for the board (e.g., <code>bcm2709-rpi-2-b.dtb</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>Source: <code>raspberrypi/firmware</code> GitHub repository</p>
+<h3 id="firmware-variants">Firmware Variants</h3>
+<p>The firmware directory (<code>/boot</code> on Raspberry Pi OS) contains several variants of the GPU firmware:</p>
+<ul>
+<li><strong><code>start.elf</code></strong>: Standard firmware with all features enabled.</li>
+<li><strong><code>start_x.elf</code></strong>: Includes camera support (likely unused on Pi 2 B unless a Camera Module is attached).</li>
+<li><strong><code>start_db.elf</code></strong>: Debug-enabled firmware; provides additional serial output during boot.</li>
+<li><strong><code>start_cd.elf</code></strong>: Cut-down firmware (reduced features, lower memory footprint).</li>
+</ul>
+<p>Each variant has a matching <code>fixup_*.dat</code> file.</p>
+<h3 id="storage-medium">Storage Medium</h3>
+<ul>
+<li><strong>Primary boot medium</strong>: SD card (MMC/SDIO interface)</li>
+<li>The BCM2836 boot ROM is hardcoded to search for <code>bootcode.bin</code> on the SD card first. There is <strong>no on-chip EEPROM</strong> for storing the bootloader on the Pi 2 Model B (unlike Pi 3B+ and later models).</li>
+<li>USB boot and network boot are supported as <em>secondary</em> boot modes, but require additional configuration (see Section 3).</li>
+</ul>
+<h3 id="firmware-update-mechanism">Firmware Update Mechanism</h3>
+<p>Firmware is updated by replacing the files on the SD card's boot partition with newer versions from the official <code>raspberrypi/firmware</code> GitHub repository. There is no on-board EEPROM to store firmware; all firmware is loaded from the SD card each boot.</p>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>The BCM2836 supports multiple boot modes, though not all are enabled by default.</p>
+<h3 id="31-sd-card-boot-primary-default">3.1 SD Card Boot (Primary / Default)</h3>
+<ul>
+<li>The boot ROM looks for an SD card in the microSD slot.</li>
+<li>The card must have a FAT-formatted partition (usually the first partition).</li>
+<li>The boot ROM reads <code>bootcode.bin</code> from the root of this partition.</li>
+<li><strong>Quirk</strong>: The boot ROM does <em>not</em> support SD cards larger than 32 GB formatted as FAT32 without specific adjustments. Larger cards typically work because the boot ROM only reads the first partition, which can still be FAT16/FAT32.</li>
+</ul>
+<h3 id="32-usb-boot-mode">3.2 USB Boot Mode</h3>
+<p>The BCM2836 can boot from USB mass storage devices, but this requires an enablement step:</p>
+<ul>
+<li><strong>Requires <code>bootcode.bin</code> with USB support</strong>: The standard <code>bootcode.bin</code> includes USB driver code, but the boot ROM does not enumerate USB devices until after <code>bootcode.bin</code> runs.</li>
+<li><strong>Process</strong>: The boot ROM still requires an SD card with <code>bootcode.bin</code> to initiate USB boot. Once loaded, <code>bootcode.bin</code> can enumerate USB mass storage and load <code>start.elf</code> and the kernel from a USB device.</li>
+<li><strong>Configuration</strong>: Setting <code>program_usb_boot_mode=1</code> in <code>config.txt</code> (or an OTP bit) reprograms the SoC to attempt USB boot if no valid SD card is detected. However, on the BCM2836 this is a community-documented feature — not officially guaranteed by Broadcom.</li>
+<li><strong>Source</strong>: Raspberry Pi boot modes documentation (Raspberry Pi Boot Modes - Official Docs)</li>
+</ul>
+<blockquote>
+<p><strong>Community Note</strong>: USB boot on BCM2836 is less reliable than on later chips (BCM2837, BCM2711). Many users report that a small SD card with only <code>bootcode.bin</code> is needed as a "boot stub" to enable full USB boot.</p>
+</blockquote>
+<h3 id="33-network-boot-pxe">3.3 Network Boot (PXE)</h3>
+<ul>
+<li>The BCM2836 supports PXE (Preboot eXecution Environment) over Ethernet.</li>
+<li><strong>Requirements</strong>:</li>
+<li>A DHCP server on the network to provide IP address and TFTP server details.</li>
+<li>A TFTP server hosting <code>bootcode.bin</code>, <code>start.elf</code>, <code>config.txt</code>, <code>cmdline.txt</code>, and kernel files.</li>
+<li><strong>Enablement</strong>: Network boot is typically triggered when no SD card is present and a DHCP server is available.</li>
+<li><strong>Source</strong>: Raspberry Pi Boot Modes - Official Docs</li>
+</ul>
+<blockquote>
+<p><strong>Community Note</strong>: Network boot requires the <code>usb-hub</code> firmware to be loaded (part of <code>start.elf</code>). Ethernet is provided by the on-board LAN9514/LAN9512 USB-to-Ethernet chip, which must be initialised before network boot can proceed. This adds delay and complexity compared to SD boot.</p>
+</blockquote>
+<h3 id="34-boot-mode-summary-table">3.4 Boot Mode Summary Table</h3>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>Default?</th>
+<th>Requires SD Card?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SD Card</td>
+<td>Yes</td>
+<td>Yes (mandatory)</td>
+<td>Primary and most reliable boot source.</td>
+</tr>
+<tr>
+<td>USB</td>
+<td>No</td>
+<td>Optional (see note)</td>
+<td>Requires <code>bootcode.bin</code> on SD or OTP enablement.</td>
+</tr>
+<tr>
+<td>PXE/Network</td>
+<td>No</td>
+<td>No</td>
+<td>Requires Ethernet hardware and DHCP/TFTP server.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-uart-serial-console-configuration-and-quirks">4. UART / Serial Console — Configuration and Quirks</h2>
+<h3 id="uart-hardware-on-bcm2836">UART Hardware on BCM2836</h3>
+<p>The BCM2836 features two UARTs:</p>
+<ul>
+<li><strong>UART0</strong> (PL011): Full-featured UART, used by default for the serial console.</li>
+<li><strong>UART1</strong> (mini-UART): Simpler UART with fewer features, typically used for Bluetooth on later models (not applicable to Pi 2 B).</li>
+</ul>
+<h3 id="pinout-on-the-40-pin-header">Pinout on the 40-Pin Header</h3>
+<table>
+<thead>
+<tr>
+<th>Pin #</th>
+<th>Function</th>
+<th>GPIO Pin</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8</td>
+<td>UART0 TX</td>
+<td>GPIO 14</td>
+</tr>
+<tr>
+<td>10</td>
+<td>UART0 RX</td>
+<td>GPIO 15</td>
+</tr>
+<tr>
+<td>6</td>
+<td>GND</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Warning</strong>: The UART runs at 3.3V logic levels. Do not connect directly to RS-232 ports without a level shifter.</p>
+</blockquote>
+<h3 id="enabling-the-serial-console">Enabling the Serial Console</h3>
+<ol>
+<li>
+<p><strong>Add to <code>cmdline.txt</code></strong>:
+   <code>console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfs type=ext4 fsck.repair=yes rootwait</code>
+   This tells the kernel to use <code>serial0</code> (mapped to UART0) as a console at 115200 baud.</p>
+</li>
+<li>
+<p><strong>Optional: Disable serial console in <code>config.txt</code></strong>:
+   <code>enable_uart=1</code>
+   This ensures the UART is enabled (on some OS images it may be disabled by default to save power).</p>
+</li>
+</ol>
+<h3 id="bootloader-serial-output">Bootloader Serial Output</h3>
+<ul>
+<li><code>start.elf</code> outputs boot messages to the UART <em>before</em> the Linux kernel takes over.</li>
+<li>If using <code>start_db.elf</code> (debug firmware), additional diagnostic messages are printed.</li>
+<li>The baud rate is fixed at 115200 by the firmware.</li>
+</ul>
+<h3 id="known-quirks">Known Quirks</h3>
+<ul>
+<li><strong>No early UART on boot ROM</strong>: The BCM2836 boot ROM does <em>not</em> output to UART. If the board fails to boot, there is no serial output until <code>bootcode.bin</code> loads.</li>
+<li><strong>GPIO pin muxing</strong>: By default, GPIO 14 and 15 are configured for UART0. If you need these GPIO pins for other purposes, you must disable the UART in <code>config.txt</code> (<code>enable_uart=0</code>) and/or use a device tree overlay to remap.</li>
+<li><strong>Flow control</strong>: The serial console does not use hardware flow control (RTS/CTS) by default. This is consistent across all Pi models prior to Pi 4.</li>
+<li><strong>BLE / Bluetooth conflict</strong>: Not applicable to Pi 2 B — Bluetooth was not integrated until Pi 3 B.</li>
+</ul>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="51-loading-custom-firmware">5.1 Loading Custom Firmware</h3>
+<p>Unlike platforms with a traditional BIOS or UEFI, the Raspberry Pi has no built-in firmware loader for arbitrary ARM binaries. Instead, the GPU (<code>start.elf</code>) is responsible for loading and starting the ARM code.</p>
+<p>To run bare-metal code on the Pi 2 Model B:</p>
+<ol>
+<li><strong>Use the standard boot flow</strong> — compile your code as <code>kernel.img</code> and place it on the SD card. The GPU will load and jump to your code.</li>
+<li><strong>Alternative</strong>: Disable the GPU entirely (not officially supported on BCM2836; some community projects have attempted GPU-free boot but it requires replacing the boot ROM, which is not possible).</li>
+</ol>
+<h3 id="52-u-boot">5.2 U-Boot</h3>
+<p>U-Boot can be used as a secondary bootloader on the Pi 2:</p>
+<ol>
+<li>Compile U-Boot for <code>rpi_2</code> or <code>bcm2836</code>.</li>
+<li>Rename the U-Boot binary to <code>boot.scr</code> or load it via <code>bootcmd</code> in <code>config.txt</code>.</li>
+<li>U-Boot runs as a "kernel" loaded by <code>start.elf</code>.</li>
+</ol>
+<blockquote>
+<p><strong>Community Note</strong>: The official Raspberry Pi documentation does not cover U-Boot in detail, but the eLinux Wiki (RPi U-Boot) documents build and deployment steps. The page was not accessible during source collection, but community forums confirm U-Boot support exists for the Pi 2.</p>
+</blockquote>
+<h3 id="53-circle-a-bare-metal-c-framework">5.3 Circle — A Bare-Metal C++ Framework</h3>
+<p>Circle is a C++ bare-metal framework for Raspberry Pi (supporting Pi 1, 2, 3, and 4). It provides:</p>
+<ul>
+<li>A standalone runtime that does not require <code>start.elf</code> (by using a custom <code>kernel.img</code> that handles all hardware init).</li>
+<li>Direct peripheral access without the VideoCore.</li>
+<li>Build system support for the BCM2836.</li>
+</ul>
+<h3 id="54-custom-firmware-considerations">5.4 Custom Firmware Considerations</h3>
+<ul>
+<li><strong>Memory split</strong>: In <code>config.txt</code>, set <code>gpu_mem</code> to control how much SDRAM is allocated to the GPU. Bare-metal code typically sets <code>gpu_mem=16</code> or <code>gpu_mem=0</code> to maximise available RAM.</li>
+<li><strong>Device Tree</strong>: Even bare-metal code can use the <code>.dtb</code> file for hardware discovery, or disable device tree with <code>device_tree=</code> in <code>config.txt</code>.</li>
+<li><strong>ATAGS vs. Device Tree</strong>: The BCM2836 supports both ATAGS (legacy) and Device Tree. Linux uses Device Tree; bare-metal code may use either.</li>
+</ul>
+<h3 id="55-loading-an-initrd">5.5 Loading an Initrd</h3>
+<p>If your bare-metal setup requires an initial ramdisk:</p>
+<pre><code>initramfs initrd.gz followkernel
+</code></pre>
+<p>This tells <code>start.elf</code> to load the initrd and pass its address to the kernel.</p>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 1 (BCM2835)</th>
+<th>Pi 2 B (BCM2836)</th>
+<th>Pi 3 B (BCM2837)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>Single-core Cortex-A7 (actually ARM1176JZF-S)</td>
+<td>Quad-core Cortex-A7</td>
+<td>Quad-core Cortex-A53 (64-bit)</td>
+</tr>
+<tr>
+<td>RAM</td>
+<td>256–512 MB</td>
+<td>1 GB</td>
+<td>1 GB</td>
+</tr>
+<tr>
+<td>Boot ROM</td>
+<td>Same architecture</td>
+<td>Same architecture</td>
+<td>Same + EEPROM option</td>
+</tr>
+<tr>
+<td>Boot firmware location</td>
+<td>SD card only</td>
+<td>SD card only</td>
+<td>SD card; optional EEPROM (Pi 3B+)</td>
+</tr>
+<tr>
+<td>USB boot</td>
+<td>Limited</td>
+<td>Supported (via bootcode.bin)</td>
+<td>Supported (more reliable)</td>
+</tr>
+<tr>
+<td>Network boot</td>
+<td>Yes (PXE)</td>
+<td>Yes (PXE)</td>
+<td>Yes (PXE)</td>
+</tr>
+<tr>
+<td>64-bit support</td>
+<td>No</td>
+<td>No</td>
+<td>Yes (ARMv8)</td>
+</tr>
+<tr>
+<td>On-board Bluetooth</td>
+<td>No</td>
+<td>No</td>
+<td>Yes (Pi 3 B only)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="differences-specific-to-bcm2836-vs-bcm2835">Differences Specific to BCM2836 vs. BCM2835</h3>
+<ul>
+<li><strong>CPU cores</strong>: The BCM2836 adds three additional ARM cores (total 4). The boot ROM must bring up all four cores; <code>start.elf</code> configures SMP (symmetric multiprocessing).</li>
+<li><strong>Memory</strong>: The BCM2836 supports up to 1 GB of SDRAM, double the maximum of BCM2835.</li>
+<li><strong>Peripheral base address</strong>: The peripheral register base changed from <code>0x20000000</code> (BCM2835) to <code>0x3F000000</code> (BCM2836). This is reflected in the Device Tree and in bare-metal code.</li>
+<li>**</li>
+</ul>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
