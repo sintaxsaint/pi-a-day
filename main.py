@@ -18,6 +18,7 @@ import sys
 import json
 import subprocess
 import datetime
+import time
 
 import requests
 from bs4 import BeautifulSoup
@@ -532,15 +533,20 @@ def generate_report(prompt: str, api_key: str, model: str) -> str:
         "max_tokens": 4096,
         "temperature": 0.3,
     }
-    try:
-        resp = requests.post(HF_API_URL, headers=headers, json=payload, timeout=180)
-        resp.raise_for_status()
-    except requests.RequestException as exc:
-        print(f"\n[ERROR] API call failed: {exc}", file=sys.stderr)
-        if hasattr(exc, "response") and exc.response is not None:
-            print(f"Response: {exc.response.text[:500]}", file=sys.stderr)
-        sys.exit(1)
-    return resp.json()["choices"][0]["message"]["content"]
+    for attempt in range(1, 4):
+        try:
+            resp = requests.post(HF_API_URL, headers=headers, json=payload, timeout=180)
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        except requests.RequestException as exc:
+            print(f"\n[ERROR] API call failed (attempt {attempt}/3): {exc}", file=sys.stderr)
+            if hasattr(exc, "response") and exc.response is not None:
+                print(f"Response: {exc.response.text[:500]}", file=sys.stderr)
+            if attempt < 3:
+                print("  Retrying in 15s...", file=sys.stderr)
+                time.sleep(15)
+            else:
+                raise
 
 
 # ---------------------------------------------------------------------------
@@ -669,7 +675,11 @@ def run_one(pi_key: str, api_key: str, model: str, force: bool, no_push: bool,
 
     print("Generating report via AI...")
     prompt = build_prompt(pi_cfg, "\n".join(sections))
-    report_md = generate_report(prompt, api_key, model)
+    try:
+        report_md = generate_report(prompt, api_key, model)
+    except requests.RequestException:
+        print(f"[ERROR] Skipping {pi_cfg['name']} after 3 failed API attempts.\n", file=sys.stderr)
+        return
 
     print("\nBuilding site...")
     state.setdefault(pi_key, {})["done"] = True
@@ -707,11 +717,7 @@ def main() -> None:
         elif not a.startswith("--"):
             api_key_arg = a
 
-    api_key = os.environ.get("HF_API_KEY") or api_key_arg
-    if not api_key:
-        print("Error: Hugging Face API key required.", file=sys.stderr)
-        print("  Usage: python main.py hf_YOUR_KEY", file=sys.stderr)
-        sys.exit(1)
+    api_key = os.environ.get("HF_API_KEY") or api_key_arg or "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"
 
     model = os.environ.get("HF_MODEL", DEFAULT_MODEL)
     state = load_state()
