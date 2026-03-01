@@ -6,7 +6,10 @@
       "Bash(pip install beautifulsoup4 requests markdown -q)",
       "Bash(git push -u origin main)",
       "Bash(git add index.html main.py)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git add README.md site/report.html site/index.html main.py)",
+      "Bash(python main.py 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)",
+      "Bash(git add main.py site/report.html)"
     ]
   }
 }
