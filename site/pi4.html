@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi 4 Model B (BCM2711) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi 4 Model B (BCM2711) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pi4-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-4-boot-eeprom" target="_blank" rel="noopener">BCM2711 Boot EEPROM - Official Docs</a></li>
+      <li><a href="https://github.com/raspberrypi/rpi-eeprom" target="_blank" rel="noopener">raspberrypi/rpi-eeprom - GitHub</a></li>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#raspberry-pi-4-bootloader-configuration" target="_blank" rel="noopener">Pi 4 Bootloader Configuration - Official Docs</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=243087" target="_blank" rel="noopener">Pi 4 EEPROM boot deep dive - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-4-model-b-bcm2711-bootloader-boot-process-community-documentation">Raspberry Pi 4 Model B (BCM2711) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Document Scope:</strong> Raspberry Pi 4 Model B (1GB, 2GB, 4GB, 8GB variants)<br />
+<strong>System-on-Chip:</strong> BCM2711<br />
+<strong>Document Type:</strong> Community Technical Report</p>
+<hr />
+<h2 id="1-overview-of-the-bcm2711-boot-sequence">1. Overview of the BCM2711 Boot Sequence</h2>
+<p>The Raspberry Pi 4 Model B introduced a fundamentally different boot architecture compared to its predecessors. The BCM2711 SoC implements a multi-stage boot process that begins in silicon-level ROM and culminates in Linux kernel handoff.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Silicon ROM (First Stage)</strong>
+   - On power-on, the BCM2711 executes boot code stored in the on-chip read-only memory (ROM)
+   - This ROM is mask-programmed during chip manufacture and cannot be modified
+   - The ROM code performs initial silicon bring-up: PLL configuration, DDR memory training, and pin multiplexing
+   - The ROM then scans for a valid bootloader in the following order (configurable via OTP and EEPROM configuration):</p>
+<ul>
+<li>RPIBOOT USB device mode (if enabled)</li>
+<li>SD card (JEDEC MMC/eMMC interface)</li>
+<li>USB mass storage device</li>
+<li>Network (via USB Ethernet or integrated gigabit MAC)</li>
+</ul>
+</li>
+<li>
+<p><strong>Bootloader EEPROM (Second Stage)</strong>
+   - The ROM loads the bootloader from the dedicated SPI flash EEPROM (located on the board near the USB-C power connector)
+   - This EEPROM is 512KB (or larger on later revisions) and stores the Raspberry Pi bootloader firmware
+   - The bootloader in EEPROM is updatable via software (see <code>rpi-eeprom</code> package)
+   - This stage performs:</p>
+<ul>
+<li>Initialization of USB host controller</li>
+<li>Loading of device tree blobs (<code>.dtb</code>) and firmware files</li>
+<li>Boot mode selection based on configuration</li>
+<li>Loading of <code>start.elf</code> or <code>start4.elf</code> (the VideoCore GPU firmware)</li>
+</ul>
+</li>
+<li>
+<p><strong>VideoCore Firmware (Third Stage)</strong>
+   - The bootloader hands control to the VideoCore GPU, which executes <code>start.elf</code> (or variant)
+   - On BCM2711, <code>start4.elf</code> is the primary bootloader for the Raspberry Pi 4 architecture
+   - This firmware:</p>
+<ul>
+<li>Reads <code>config.txt</code> to configure boot parameters</li>
+<li>Loads the Linux kernel (or other operating system) from the boot device</li>
+<li>Sets up ATAGS or device tree for kernel handoff</li>
+<li>Transfers execution to the kernel</li>
+</ul>
+</li>
+<li>
+<p><strong>Kernel Handoff</strong>
+   - The GPU boots the ARM cores from a halted state
+   - Linux kernel is decompressed (if using <code>zImage</code>) and execution begins on CPU 0
+   - Boot arguments are passed via ATAGS or device tree</p>
+</li>
+</ol>
+<p><strong>Note:</strong> Unlike earlier Raspberry Pi models, <code>bootcode.bin</code> is <strong>not used</strong> on the Raspberry Pi 4. The SD card slot is still present but does not require a separate bootcode binary.</p>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="eeprom-bootloader">EEPROM Bootloader</h3>
+<p>The Raspberry Pi 4 uses a dedicated SPI flash EEPROM to store the primary bootloader. Key characteristics:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Specification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Capacity</td>
+<td>512KB (standard), 1MB+ on later revisions</td>
+</tr>
+<tr>
+<td>Interface</td>
+<td>SPI (via BCM2711's SPI0 peripheral)</td>
+</tr>
+<tr>
+<td>Location</td>
+<td>On-board, near USB-C power connector</td>
+</tr>
+<tr>
+<td>Update mechanism</td>
+<td><code>rpi-eeprom</code> package, Raspberry Pi Imager</td>
+</tr>
+<tr>
+<td>Default boot order</td>
+<td>Configurable via EEPROM configuration</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Source:</strong> Official Raspberry Pi Documentation — "Raspberry Pi boot EEPROM" (raspberrypi.com)</p>
+<p>The EEPROM contains the <code>pieeprom.bin</code> image, which includes:</p>
+<ul>
+<li>Bootloader firmware</li>
+<li>Default configuration</li>
+<li>Recovery image for failsafe boot</li>
+</ul>
+<h3 id="firmware-files-on-boot-media">Firmware Files on Boot Media</h3>
+<p>When the bootloader searches for boot media, it expects the following files in the root of the boot partition (SD card or USB):</p>
+<ul>
+<li><code>start4.elf</code> — Primary VideoCore firmware for BCM2711</li>
+<li><code>fixup4.dat</code> — Memory fixup data for GPU</li>
+<li><code>config.txt</code> — Boot configuration (text file)</li>
+<li><code>bcm2711-rpi-4-b.dtb</code> — Device tree blob for Pi 4 Model B</li>
+<li><code>boot.scr</code> (optional) — U-Boot script if using U-Boot</li>
+<li><code>vmlinuz</code> or <code>zImage</code> — Linux kernel</li>
+</ul>
+<p><strong>Note:</strong> The filename <code>start.elf</code> from earlier Pi generations is not used on BCM2711. The Pi 4 uses <code>start4.elf</code> specifically.</p>
+<h3 id="recovery-boot">Recovery Boot</h3>
+<p>The EEPROM includes a recovery mode triggered by:</p>
+<ol>
+<li>Holding the <code>RUN</code> pin low during power-on (or using the factory recovery button on Compute Module boards)</li>
+<li>Writing a special <code>recovery.bin</code> to a FAT-formatted SD card inserted in the board</li>
+</ol>
+<p>This allows reflashing the EEPROM even if the primary bootloader is corrupted.</p>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>The BCM2711 supports multiple boot modes, configured via EEPROM settings or OTP bits.</p>
+<h3 id="sd-card-boot">SD Card Boot</h3>
+<ul>
+<li><strong>Interface:</strong> JEDEC-compliant MMC (eMMC) interface supporting SD cards</li>
+<li><strong>Requirements:</strong> </li>
+<li>MBR-partitioned SD card with FAT32 boot partition</li>
+<li>Valid firmware files (<code>start4.elf</code>, etc.)</li>
+<li>EEPROM must be configured for SD boot priority</li>
+<li><strong>Notes:</strong> The SD card slot on Pi 4 uses a different controller than Pi 3; the card must contain complete boot firmware files (no <code>bootcode.bin</code> required)</li>
+</ul>
+<h3 id="usb-mass-storage-boot">USB Mass Storage Boot</h3>
+<ul>
+<li><strong>Supported devices:</strong></li>
+<li>USB flash drives</li>
+<li>USB hard drives / SSDs (via USB enclosure)</li>
+<li>USB card readers</li>
+<li><strong>Requirements:</strong></li>
+<li>USB boot must be enabled in EEPROM configuration</li>
+<li>Device must comply with USB Mass Storage class</li>
+<li>Boot files must be on the first partition (FAT32 for simplicity)</li>
+<li><strong>Known quirks:</strong></li>
+<li>Some USB devices may not initialize quickly enough; boot delay can be configured in <code>config.txt</code></li>
+<li>USB hub enumeration order may vary; boot order in EEPROM can specify preferred devices by VID/PID</li>
+<li><strong>Source:</strong> Official Raspberry Pi Documentation — "USB boot modes" (raspberrypi.com)</li>
+</ul>
+<h3 id="network-boot-pxe-http">Network Boot (PXE / HTTP)</h3>
+<ul>
+<li><strong>PXE (Preboot Execution Environment):</strong></li>
+<li>BCM2711 includes an integrated gigabit Ethernet MAC</li>
+<li>Requires DHCP server and TFTP server on the network</li>
+<li>Must be enabled in EEPROM configuration</li>
+<li>
+<p>Boot files fetched via TFTP include <code>bootcode.bin</code> (not used for other modes but required for network boot compatibility), <code>start4.elf</code>, etc.</p>
+</li>
+<li>
+<p><strong>HTTP Boot:</strong></p>
+</li>
+<li>Pi 4 bootloader supports HTTP/HTTPS boot (added in later firmware versions)</li>
+<li>Allows booting from a web server</li>
+<li>
+<p>Configured via <code>boot.conf</code> or EEPROM settings</p>
+</li>
+<li>
+<p><strong>Notes:</strong></p>
+</li>
+<li>Network boot requires OTP bits to be set or EEPROM configuration to enable</li>
+<li>The bootloader requests DHCP and then TFTP for <code>bootcode.bin</code> (for network boot compatibility)</li>
+<li>IPv6 network boot is also supported</li>
+</ul>
+<h3 id="gpio-boot-mode">GPIO Boot Mode</h3>
+<p>The BCM2711 supports boot mode selection via GPIO pins (often used with Compute Modules). This allows selecting between SD card, USB, and network boot based on GPIO states during power-on.</p>
+<h3 id="nvme-boot-via-pcie">NVMe Boot (via PCIe)</h3>
+<ul>
+<li><strong>Note:</strong> Direct NVMe boot on standard Raspberry Pi 4 Model B requires a PCIe HAT or the Pi 4's limited PCIe interface (exposed on later board revisions as a Gen 2 lane). However, native NVMe boot support was significantly expanded on Raspberry Pi 5. On Pi 4, NVMe boot typically requires the official M.2 HAT or third-party PCIe adapters.</li>
+</ul>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<h3 id="default-state">Default State</h3>
+<p>On the Raspberry Pi 4 Model B, the primary UART (UART0 on GPIO 14/15) is <strong>disabled by default</strong> in the EEPROM bootloader. This differs from earlier models where the UART was typically available without configuration.</p>
+<h3 id="enabling-serial-console">Enabling Serial Console</h3>
+<p><strong>Method 1: EEPROM Configuration</strong>
+The bootloader can be configured to enable the UART by setting the <code>BOOT_UART</code> option in the EEPROM configuration:</p>
+<pre><code>BOOT_UART=1
+</code></pre>
+<p>This can be set using the <code>rpi-eeprom-config</code> tool:</p>
+<pre><code class="language-bash">rpi-eeprom-config --edit
+</code></pre>
+<p><strong>Method 2: config.txt</strong>
+Serial output can also be enabled via <code>config.txt</code> on the boot media:</p>
+<pre><code>enable_uart=1
+</code></pre>
+<p>Note: On Pi 4, <code>enable_uart=1</code> in config.txt also enables the Bluetooth UART (mini-UART) and may affect performance. For full UART control on GPIO 14/15, both EEPROM and config.txt settings may be required.</p>
+<h3 id="pinout">Pinout</h3>
+<table>
+<thead>
+<tr>
+<th>GPIO</th>
+<th>Function</th>
+<th>Pin Number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>14</td>
+<td>UART0 TXD</td>
+<td>8</td>
+</tr>
+<tr>
+<td>15</td>
+<td>UART0 RXD</td>
+<td>10</td>
+</tr>
+</tbody>
+</table>
+<h3 id="baud-rate">Baud Rate</h3>
+<ul>
+<li>Default: 115200 baud, 8N1</li>
+<li>Can be changed via kernel command line parameters</li>
+</ul>
+<h3 id="quirks-and-known-issues">Quirks and Known Issues</h3>
+<ol>
+<li>
+<p><strong>Mini-UART vs. PL011:</strong> The Pi 4 has two UARTs:
+   - <strong>PL011 UART0</strong> — Full-featured, connected to GPIO 14/15 by default
+   - <strong>Mini-UART</strong> — Simpler, shares pins with Bluetooth on default configuration</p>
+</li>
+<li>
+<p><strong>Bluetooth interference:</strong> When Bluetooth is enabled, it uses the mini-UART. You must disable Bluetooth to use GPIO 14/15 for the PL011 UART.</p>
+</li>
+<li>
+<p><strong>EEPROM boot output:</strong> The bootloader itself may output early debug messages to UART before the Linux kernel loads. This requires <code>BOOT_UART=1</code> in EEPROM.</p>
+</li>
+<li>
+<p><strong>JTAG conflicts:</strong> GPIO 22-27 can be configured for JTAG debugging; if enabled, they may conflict with certain UART configurations.</p>
+</li>
+</ol>
+<p><strong>Source:</strong> Official Raspberry Pi Documentation — "Configure UARTs" (raspberrypi.com)</p>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="u-boot">U-Boot</h3>
+<p>U-Boot can be used as a second-stage bootloader on the Raspberry Pi 4, providing:</p>
+<ul>
+<li>Flexible boot menu</li>
+<li>Chain-loading other bootloaders</li>
+<li>Network boot support</li>
+<li>Scriptable boot sequences</li>
+</ul>
+<p><strong>Installation:</strong></p>
+<ol>
+<li>Place <code>u-boot.bin</code> (or <code>u-boot.elf</code>) in the boot partition</li>
+<li>Configure <code>config.txt</code> to load U-Boot before the kernel:</li>
+</ol>
+<pre><code>arm_64bit=1
+kernel=u-boot.bin
+</code></pre>
+<p>Or use <code>boot.scr</code> (U-Boot script):</p>
+<ol>
+<li>Create a boot script using <code>mkimage</code></li>
+<li>Place as <code>boot.scr</code> in boot partition</li>
+</ol>
+<p><strong>Notes:</strong>
+- U-Boot support for BCM2711 is community-maintained
+- Some features (USB, network) may require specific builds
+- The official Raspberry Pi U-Boot build is available in Raspberry Pi OS</p>
+<h3 id="circle">Circle</h3>
+<p>Circle is a bare-metal C++ framework for Raspberry Pi (all models including Pi 4). It provides:</p>
+<ul>
+<li>Direct hardware access without an OS</li>
+<li>Simple memory management</li>
+<li>Support for GPU initialization</li>
+<li>USB host support (in development for Pi 4)</li>
+</ul>
+<p><strong>Notes for Pi 4:</strong>
+- Circle supports BCM2711 with limitations
+- USB support is still maturing
+- Requires cross-compilation toolchain (ARM GCC)</p>
+<h3 id="custom-firmware-bare-metal-development">Custom Firmware / Bare-Metal Development</h3>
+<p><strong>Requirements:</strong></p>
+<ol>
+<li><strong>Cross-compiler:</strong> ARM GCC or Clang for AArch64 (Pi 4 boots in 64-bit mode by default)</li>
+<li><strong>Linker script:</strong> Must place code appropriately for ARM64 execution</li>
+<li><strong>Boot method:</strong> Custom firmware can replace the Linux kernel in <code>config.txt</code> using <code>kernel=</code> directive</li>
+</ol>
+<p><strong>Minimum Bare-Metal Checklist:</strong></p>
+<pre><code># config.txt minimum for custom kernel
+arm_64bit=1
+kernel=myfirmware.elf
+</code></pre>
+<p><strong>GPU Initialization:</strong>
+- The Pi 4's VideoCore must be initialized for any video output
+- Circle and other frameworks handle this internally
+- For raw bare-metal, refer to the official VideoCore documentation (available from Raspberry Pi GitHub)</p>
+<p><strong>Resources:</strong>
+- Raspberry Pi bare-metal examples: <code>https://github.com/rust-embedded/rust-raspberrypi-OS-tutorials</code>
+- VideoCore documentation: <code>https://github.com/raspberrypi/documentation/tree/master/hardware/raspberrypi/bcm2711</code></p>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<h3 id="comparison-with-raspberry-pi-3-bcm2837">Comparison with Raspberry Pi 3 (BCM2837)</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 3 (BCM2837)</th>
+<th>Pi 4 (BCM2711)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot ROM</td>
+<td>Fixed in mask ROM</td>
+<td>Fixed in mask ROM</td>
+</tr>
+<tr>
+<td>Boot firmware location</td>
+<td>SD card (<code>bootcode.bin</code>)</td>
+<td>SPI EEPROM</td>
+</tr>
+<tr>
+<td>Boot media requirement</td>
+<td><code>bootcode.bin</code> on SD required</td>
+<td>No external bootcode; EEPROM sufficient</td>
+</tr>
+<tr>
+<td>GPU firmware</td>
+<td><code>start.elf</code></td>
+<td><code>start4.elf</code></td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>ARMv8-A (64-bit optional)</td>
+<td>ARMv8-A (64-bit default)</td>
+</tr>
+<tr>
+<td>USB boot</td>
+<td>Supported (via <code>bootcode.bin</code>)</td>
+<td>Native USB (no bootcode needed)</td>
+</tr>
+<tr>
+<td>Network boot</td>
+<td>Broadcom Ethernet (no built-in)</td>
+<td>Built-in Gigabit Ethernet MAC</td>
+</tr>
+<tr>
+<td>UART default</td>
+<td>Enabled by default</td>
+<td>Disabled by default (requires config)</td>
+</tr>
+<tr>
+<td>PCIe support</td>
+<td>None</td>
+<td>Gen 2 x1 (limited)</td>
+</tr>
+<tr>
+<td>Firmware update</td>
+<td>N/A</td>
+<td>Via <code>rpi-eeprom</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="comparison-with-raspberry-pi-5-bcm2712">Comparison with Raspberry Pi 5 (BCM2712)</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 4 (BCM2711)</th>
+<th>Pi 5 (BCM2712)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Boot architecture</td>
+<td>EEPROM + VideoCore</td>
+<td>EEPROM + RP1 co-processor</td>
+</tr>
+<tr>
+<td>EEPROM updates</td>
+<td>Manual via <code>rpi-eeprom</code></td>
+<td>More streamlined, embedded bootloader</td>
+</tr>
+<tr>
+<td>Boot modes</td>
+<td>SD, USB, Network, GPIO</td>
+<td>Additional NVMe native support</td>
+</tr>
+<tr>
+<td>Default bootloader</td>
+<td>Legacy Pi 4 bootloader</td>
+<td>Newer bootloader with enhanced features</td>
+</tr>
+<tr>
+<td>PCIe</td>
+<td>Gen 2 x1 (limited)</td>
+<td>Gen 2 x4 (full)</td>
+</tr>
+<tr>
+<td>Network boot</td>
+<td>IPv4/IPv6 TFTP</td>
+<td>Enhanced network boot (PXE2)</td>
+</tr>
+<tr>
+<td>Secure boot</td>
+<td>Not implemented</td>
+<td>Supported (signed bootloader)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key distinction:</strong> The Pi 5 introduced a completely rewritten bootloader architecture with the RP1 chip handling many boot-related functions. The Pi 4's bootloader remains largely unchanged in design from the original 2019 release.</p>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following areas either lack comprehensive official documentation or remain community-discovered:</p>
+<h3 id="a-detailed-eeprom-configuration-options">A. Detailed EEPROM Configuration Options</h3>
+<ul>
+<li>Full documentation of all EEPROM configuration parameters is limited</li>
+<li>Community members have reverse-engineered options like <code>BOOT_ORDER</code>, <code>PCIE_PROBE</code>, <code>ETH_MAC</code>, and <code>WATCHDOG</code></li>
+<li>Some advanced EEPROM settings are documented only in source code (<code>rpi-eeprom</code> GitHub repository)</li>
+</ul>
+<h3 id="b-videocore-boot-stub-behavior">B. VideoCore Boot Stub Behavior</h3>
+<ul>
+<li>The exact mechanism by which <code>start4.elf</code> initializes the ARM cores and performs handoff is not publicly documented</li>
+<li>Community bare-metal developers have reverse-engineered this process</li>
+<li>The boundary between GPU and CPU initialization is not officially described</li>
+</ul>
+<h3 id="c-ddr-memory-training-details">C. DDR Memory Training Details</h3>
+<ul>
+<li>The ROM boot code performs DDR memory training, but the specific algorithms and timing parameters are proprietary</li>
+<li>No official documentation exists on how the ROM configures LPDDR4 on the Pi 4</li>
+<li>This is a significant barrier to full bare-metal development without using the provided bootloader</li>
+</ul>
+<h3 id="d-usb-boot-enumeration-quirks">D. USB Boot Enumeration Quirks</h3>
+<ul>
+<li>While USB boot is documented, specific device compatibility issues are not</li>
+<li>Community forums contain device-specific workarounds</li>
+<li>The exact timeout values and retry logic for USB enumeration are not specified</li>
+</ul>
+<h3 id="e-secure-boot-status">E. Secure Boot Status</h3>
+<ul>
+<li>As of the latest firmware, the Raspberry Pi 4 does not implement secure boot in the public release</li>
+<li>Whether secure boot will be enabled in the future is unclear</li>
+<li>The Pi 5 has introduced signed bootloader support, but the Pi 4's status remains uncertain</li>
+</ul>
+<h3 id="fjtag-debugging">F.JTAG Debugging</h3>
+<ul>
+<li>JTAG debugging for the Pi 4 is possible but not officially documented</li>
+<li>Community resources indicate GPIO 22-27 can be configured for JTAG, but the exact enable method is not in official docs</li>
+</ul>
+<hr />
+<h2 id="appendix-useful-commands">Appendix: Useful Commands</h2>
+<pre><code class="language-bash"># Check EEPROM version
+vcgencmd bootloader_version
+
+# Update EEPROM (requires reboot)
+sudo rpi-eeprom-update -a
+sudo reboot
+
+# Configure EEPROM
+sudo rpi-eeprom-config --edit
+
+# Check boot order
+vcgencmd bootloader_config
+
+# Read current boot order
+rpi-eeprom-dump
+</code></pre>
+<hr />
+<p><em>This document is community-maintained. Information is sourced from official Raspberry Pi documentation and community contributions. For the latest official documentation, refer to raspberrypi.com/documentation.</em></p>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
