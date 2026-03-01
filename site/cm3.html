@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Compute Module 3 / 3+ (BCM2837) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Compute Module 3 / 3+ (BCM2837) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="cm3-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#pi-3-only-bootcode-bin-usb-boot" target="_blank" rel="noopener">Pi 3 USB / Network Boot - Official Docs</a></li>
+      <li><a href="https://github.com/raspberrypi/usbboot" target="_blank" rel="noopener">raspberrypi/usbboot - GitHub (BCM2837 USB boot ROM)</a></li>
+      <li><a href="https://elinux.org/RPiconfig" target="_blank" rel="noopener">RPiconfig boot options - eLinux Wiki</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=174648" target="_blank" rel="noopener">BCM2837 64-bit boot thread - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="compute-module-3-3-bcm2837-bootloader-boot-process-community-documentation">Compute Module 3 / 3+ (BCM2837) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Document Scope:</strong> This report covers the BCM2837-based Compute Module 3 (CM3) and Compute Module 3+ (CM3+) platforms. It addresses bootloader behavior, firmware components, supported boot modes, serial console configuration, and bare-metal development considerations. Information is drawn from official Raspberry Pi documentation, the <code>raspberrypi/usbboot</code> GitHub repository, and community sources. Where documentation is sparse or contradictory, this is noted explicitly.</p>
+<p><strong>Intended Audience:</strong> Embedded systems engineers, firmware developers, and community members working with Compute Module 3 or 3+ hardware.</p>
+<hr />
+<h2 id="1-overview-of-the-bcm2837-boot-sequence">1. Overview of the BCM2837 Boot Sequence</h2>
+<p>The BCM2837 System-on-Chip (SoC) uses a two-stage boot architecture in which the VideoCore IV GPU executes firmware before handing control to the ARM Cortex-A53 CPUs. This is a fundamental characteristic of all Raspberry Pi silicon prior to BCM2711.</p>
+<h3 id="11-step-by-step-boot-flow">1.1 Step-by-Step Boot Flow</h3>
+<p>The boot process on BCM2837 proceeds as follows:</p>
+<ol>
+<li>
+<p><strong>Power-On and ROM Boot (Stage 0)</strong>
+   - On power-on, the SoC executes mask ROM code baked into the silicon. This ROM is immutable and contains the <em>first-stage</em> bootloader.
+   - The ROM inspects the OTP (One-Time Programmable) memory bits to determine the boot device priority. It does <strong>not</strong> execute arbitrary code from any storage medium at this stage.</p>
+</li>
+<li>
+<p><strong>Bootloader Selection (Stage 1)</strong>
+   - The ROM bootloader reads the first partition (FAT) of the selected boot device (SD card, eMMC, or USB).
+   - On Compute Module 3/3+, the default boot device is the onboard eMMC (8 GB soldered flash). The module can boot from SD card if the appropriate IO board is used and the OTP is configured.
+   - The ROM loads <code>bootcode.bin</code> into the L2 cache (or SRAM on some variants). This file is the <em>second-stage</em> bootloader.</p>
+</li>
+<li>
+<p><strong>Loading start.elf (Stage 2)</strong>
+   - <code>bootcode.bin</code> enables the SDRAM and loads <code>start.elf</code> (or <code>start_cd.elf</code> / <code>start_db.elf</code> for debug and display-core variants) from the boot partition.
+   - <code>start.elf</code> is the VideoCore firmware binary. It contains the GPU firmware, memory initialization, and the logic to load the kernel.</p>
+</li>
+<li>
+<p><strong>Kernel Loading (Stage 3)</strong>
+   - The GPU reads <code>config.txt</code> to apply board-specific configuration (device tree blobs, kernel overrides, UART selection).
+   - It loads the ARM kernel (<code>kernel8.img</code> for 64-bit, <code>kernel7.img</code> for 32-bit) into RAM at address <code>0x100000</code> (1 MB).
+   - On BCM2837, the default is to boot in 64-bit mode if a 64-bit kernel is present.
+   - The GPU then releases the ARM cores from reset, transferring execution to the loaded kernel image.</p>
+</li>
+</ol>
+<h3 id="12-boot-partition-requirements">1.2 Boot Partition Requirements</h3>
+<p>The boot medium must contain a FAT32 (or FAT16) partition with the following minimum files:</p>
+<ul>
+<li><code>bootcode.bin</code> — second-stage bootloader</li>
+<li><code>start.elf</code> — main VideoCore firmware</li>
+<li><code>config.txt</code> — configuration file parsed by the GPU</li>
+<li><code>cmdline.txt</code> — kernel command line arguments</li>
+<li><code>kernel8.img</code> or <code>kernel7.img</code> — ARM executable</li>
+</ul>
+<p>On Compute Module 3/3+, the eMMC is the default boot medium. The module does not have a built-in SD card slot; an IO board (CMIODIO or CM3/3+ IO Board) is required to expose the eMMC as a USB mass-storage device or to add an SD card slot.</p>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="21-firmware-components">2.1 Firmware Components</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+<th>Loaded By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>Initializes SDRAM, locates and loads <code>start.elf</code></td>
+<td>ROM (mask ROM)</td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>GPU firmware; loads kernel, parses <code>config.txt</code></td>
+<td><code>bootcode.bin</code></td>
+</tr>
+<tr>
+<td><code>fixup.dat</code></td>
+<td>Memory fixup table paired with <code>start.elf</code></td>
+<td>Loaded alongside <code>start.elf</code></td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Boot configuration (text file)</td>
+<td>Parsed by <code>start.elf</code></td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command line</td>
+<td>Passed to kernel by <code>start.elf</code></td>
+</tr>
+</tbody>
+</table>
+<p>These firmware files are architecture-specific. For BCM2837, the firmware files must be from the <code>rpi-update</code> or Raspberry Pi GitHub <code>firmware</code> repository branch appropriate to the Pi 3 / CM3 generation. Using firmware from the Pi 4 or Pi 5 branches will not work.</p>
+<h3 id="22-storage-media">2.2 Storage Media</h3>
+<ul>
+<li><strong>eMMC (Compute Module 3/3+):</strong> The primary onboard storage. The eMMC presents as a standard block device (<code>/dev/mmcblk0</code>) under Linux. The ROM bootloader accesses it via the SDHCI controller.</li>
+<li><strong>SD Card:</strong> When the CM3/3+ is mounted on an IO board with an SD card slot, the OTP can be programmed to prefer SD card boot. The SD card operates on the same SDHCI controller as the eMMC.</li>
+<li><strong>USB Mass Storage:</strong> BCM2837 supports USB mass storage boot, but this requires OTP configuration. The <code>raspberrypi/usbboot</code> tool can be used to flash the eMMC over USB when the module is in USB boot mode. (Source: <code>raspberrypi/usbboot</code> GitHub repository — lists CM3 and CM3+ as compatible devices.)</li>
+</ul>
+<h3 id="23-otp-and-boot-order">2.3 OTP and Boot Order</h3>
+<p>The boot device order is controlled by OTP memory bits. The Raspberry Pi bootloader supports programmable boot order via OTP. The default order on CM3/3+ is:</p>
+<ol>
+<li>eMMC</li>
+<li>SD card (if present on the IO board)</li>
+<li>USB (if OTP is configured)</li>
+</ol>
+<p>The OTP is writable only once per bit (set to 1). Community documentation on the OTP bit definitions is available from the official docs and from the <code>rpi-eeprom</code> repository. The relevant bits for boot mode selection are documented in the "Raspberry Pi OTP register and bit definitions" section of the official documentation. (Source: Raspberry Pi Documentation — "Raspberry Pi boot modes" and "OTP register and bit definitions")</p>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<h3 id="31-sd-card-emmc-boot">3.1 SD Card / eMMC Boot</h3>
+<p>This is the default and most straightforward boot mode. The ROM bootloader reads the FAT partition from the eMMC (or SD card) and loads <code>bootcode.bin</code>. This mode requires no special OTP configuration.</p>
+<ul>
+<li><strong>CM3/3+ default:</strong> Boots from onboard eMMC.</li>
+<li><strong>With IO board:</strong> Can boot from microSD card if the IO board provides an SD slot.</li>
+</ul>
+<h3 id="32-usb-boot">3.2 USB Boot</h3>
+<p>USB mass storage boot was added to BCM2837 via firmware updates. To enable USB boot:</p>
+<ul>
+<li>OTP bit <code>0x6</code> (or equivalent, per the official docs) must be set to enable USB boot mode.</li>
+<li>A USB mass storage device (flash drive, HDD, SSD) must be connected to the USB port (via the IO board's USB connector).</li>
+<li>The boot files must reside on the USB device's first FAT partition.</li>
+</ul>
+<p>The <code>raspberrypi/usbboot</code> tool provides a host-side utility (<code>rpiboot</code>) that enumerates the Compute Module as a USB mass storage device, allowing the eMMC to be flashed from a host PC. The tool supports CM3 and CM3+. (Source: <code>raspberrypi/usbboot</code> GitHub repository — "Compatible devices" list)</p>
+<blockquote>
+<p><strong>Community note:</strong> USB boot on BCM2837 is slower than eMMC boot and may exhibit timing issues with some USB devices. Using a powered USB hub or a high-quality short cable is recommended in the official documentation.</p>
+</blockquote>
+<h3 id="33-network-boot-pxe">3.3 Network Boot (PXE)</h3>
+<p>PXE (Preboot Execution Environment) network boot is supported on BCM2837. The requirements are:</p>
+<ul>
+<li>The OTP must have the network boot bit set.</li>
+<li>A DHCP server must be present on the network to provide an IP address and TFTP server address.</li>
+<li>A TFTP server must serve the boot files (<code>bootcode.bin</code>, <code>start.elf</code>, <code>config.txt</code>, kernel).</li>
+<li>The Ethernet interface must be connected to the IO board's Ethernet port (via the CM3/3+ IO board).</li>
+</ul>
+<p>The boot sequence for PXE involves the ROM bootloader attempting SD/eMMC boot first, then falling back to USB, and finally to network boot if the OTP is configured accordingly. The official documentation details the exact fallback order. (Source: Raspberry Pi Documentation — "Network booting")</p>
+<h3 id="34-gpio-boot-mode">3.4 GPIO Boot Mode</h3>
+<p>GPIO boot mode (selecting a boot device via GPIO pins) is documented in the official docs for newer Pi models, but community documentation indicates it may not be available on BCM2837. This is an area of uncertainty — the official "GPIO boot mode" page does not explicitly list CM3/3+ as supported. (Source: Raspberry Pi Documentation — "GPIO boot mode")</p>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<h3 id="41-default-uart-configuration">4.1 Default UART Configuration</h3>
+<p>BCM2837 provides two UARTs:</p>
+<ul>
+<li><strong>UART0 (PL011):</strong> Full-featured UART, mapped to GPIO pins 14 (TXD) and 15 (RXD) by default.</li>
+<li><strong>UART1 (mini UART):</strong> Simplified UART with fewer features, mapped to alternate GPIO pins.</li>
+</ul>
+<p>On Compute Module 3/3+, the UART pins are exposed on the IO board's 22-pin or 40-pin header (depending on the IO board version). The default configuration in <code>config.txt</code> controls which UART is used for the serial console.</p>
+<h3 id="42-enabling-serial-console">4.2 Enabling Serial Console</h3>
+<p>To enable the serial console on the PL011 (default):</p>
+<pre><code class="language-ini"># In config.txt
+enable_uart=1
+</code></pre>
+<p>This maps the main console to UART0 on pins 14/15. The <code>cmdline.txt</code> must also contain the console argument:</p>
+<pre><code class="language-text">console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfs Type=ext4 elevator=deadline fsck.repair=yes rootwait
+</code></pre>
+<h3 id="43-compute-module-specifics">4.3 Compute Module Specifics</h3>
+<ul>
+<li><strong>No on-board Ethernet/USB on bare CM3/3+:</strong> The CM3/3+ module itself does not expose USB or Ethernet. These require an IO board (CMIODIO or CM3/3+ IO Board). The serial console is one of the few reliable bring-up interfaces when no IO board is attached.</li>
+<li><strong>Pin multiplexing:</strong> The CM3/3+ has 200 GPIO pins, of which a subset is routed to the board edge. UART0 pins are available on these edge pins, but the exact pinout depends on the carrier board design. The IO board documentation specifies the pin assignments.</li>
+<li><strong>Baud rate:</strong> The default baud rate is 115200 bps, 8N1.</li>
+</ul>
+<h3 id="44-quirks">4.4 Quirks</h3>
+<ul>
+<li>The mini UART (UART1) has a lower bandwidth and is affected by VPU clock frequency changes. If the VPU is underclocked, the mini UART baud rate will drift. For reliable serial console, use the PL011 (UART0).</li>
+<li>On some early CM3 revisions, the OTP boot mode bits had to be manually configured to enable UART0 as the primary console. This was documented in community forum threads. (Source: Community forum discussions on Compute Module bring-up)</li>
+<li>The GPU parses <code>config.txt</code> <em>before</em> the ARM cores are started. Any UART-related settings in <code>config.txt</code> affect the GPU's console output (via the firmware's built-in serial debug), not the Linux kernel console.</li>
+</ul>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-up Notes</h2>
+<h3 id="51-bare-metal-development">5.1 Bare-Metal Development</h3>
+<p>Developing bare-metal code for BCM2837 (Cortex-A53 in 64-bit mode) requires understanding the boot-time role of the VideoCore. The ARM cores are held in reset until the GPU firmware (<code>start.elf</code>) releases them. This means:</p>
+<ul>
+<li><strong>No direct ARM-only boot:</strong> It is not possible to bypass the VideoCore firmware entirely on BCM2837. Even bare-metal code must be loaded by the GPU firmware.</li>
+<li><strong>Loading methods:</strong></li>
+<li>Place <code>kernel8.img</code> (64-bit) or <code>kernel7.img</code> (32-bit) on the boot partition. The GPU loads this file to memory address <code>0x100000</code> and jumps to it.</li>
+<li>Alternative: Use <code>uboot</code> as a second-stage bootloader loaded by <code>start.elf</code>, which then loads a custom kernel.</li>
+</ul>
+<h3 id="52-u-boot">5.2 U-Boot</h3>
+<p>U-Boot can be used on CM3/3+ as a third-stage bootloader. The typical workflow is:</p>
+<ol>
+<li><code>start.elf</code> loads <code>uboot.bin</code> (or <code>u-boot.bin</code>) from the boot partition.</li>
+<li>U-Boot initializes additional hardware (USB, Ethernet, storage) and loads the final OS kernel or a kernel from the network.</li>
+</ol>
+<p>U-Boot support for BCM2837 is available in the mainline U-Boot tree. Community build scripts and pre-built binaries are available. The official Raspberry Pi documentation does not cover U-Boot configuration in detail, but the U-Boot project maintains board-specific defconfigs for the Pi 3 family (which share the BCM2837 SoC).</p>
+<h3 id="53-circle">5.3 Circle</h3>
+<p>Circle is a bare-metal C++ framework for Raspberry Pi. It provides a minimal runtime that runs directly on the ARM CPU without requiring the VideoCore firmware. However, Circle currently requires the <code>kernel.img</code> (32-bit) loading mechanism, and support for 64-bit Pi 3 / CM3 is limited or still under development in community branches.</p>
+<h3 id="54-custom-firmware-constraints">5.4 Custom Firmware Constraints</h3>
+<ul>
+<li><strong>No direct firmware replacement:</strong> The <code>bootcode.bin</code> and <code>start.elf</code> are binary-only proprietary blobs distributed by Raspberry Pi. There is no open-source replacement that provides full functionality.</li>
+<li><strong>EEPROM on CM3/3+:</strong> Unlike the Compute Module 4 and 5, the CM3/3+ does not have a user-programmable bootloader EEPROM. The boot firmware resides on the boot partition of the eMMC or SD card, not in SPI flash.</li>
+<li><strong>Secure boot:</strong> Not available on BCM2837. The secure boot chain introduced in BCM2711 (Pi 4) and later is not present on CM3/3+.</li>
+</ul>
+<h3 id="55-linux-kernel">5.5 Linux Kernel</h3>
+<p>The official Raspberry Pi Linux kernel (<code>raspberrypi/kernel</code>) supports BCM2837. The device tree blobs for Compute Module 3 and 3+ are:</p>
+<ul>
+<li><code>bcm2837-rpi-cm3.dtb</code> — Compute Module 3</li>
+<li><code>bcm2837-rpi-cm3-plus.dtb</code> — Compute Module 3+</li>
+</ul>
+<p>These device trees must be referenced in <code>config.txt</code> via the <code>device_tree</code> or <code>dtparam</code> directives.</p>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi 2 (BCM2836)</th>
+<th><strong>CM3/CM3+ (BCM2837)</strong></th>
+<th>Pi 3B+ (BCM2837B0)</th>
+<th>Pi 4 (BCM2711)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CPU Architecture</strong></td>
+<td>32-bit Cortex-A7</td>
+<td>64-bit Cortex-A53</td>
+<td>64-bit Cortex-A53</td>
+<td>64-bit Cortex-A72</td>
+</tr>
+<tr>
+<td><strong>Default Boot Mode</strong></td>
+<td>SD card</td>
+<td>eMMC (onboard)</td>
+<td>SD card / USB / PXE</td>
+<td>SPI EEPROM + SD</td>
+</tr>
+<tr>
+<td><strong>USB Boot</strong></td>
+<td>No (without OTP)</td>
+<td>Yes (OTP-configured)</td>
+<td>Yes (OTP-configured)</td>
+<td>Yes (default)</td>
+</tr>
+<tr>
+<td><strong>Network Boot (PXE)</strong></td>
+<td>Limited</td>
+<td>Yes (OTP-configured)</td>
+<td>Yes (OTP-configured)</td>
+<td>Yes (default)</td>
+</tr>
+<tr>
+<td><strong>Boot EEPROM</strong></td>
+<td>No</td>
+<td>No</td>
+<td>No</td>
+<td>Yes (SPI flash)</td>
+</tr>
+<tr>
+<td><strong>Secure Boot</strong></td>
+<td>No</td>
+<td>No</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Firmware Location</strong></td>
+<td>SD card / FAT partition</td>
+<td>eMMC / SD card / USB</td>
+<td>SD card / USB</td>
+<td>SPI flash + FAT partition</td>
+</tr>
+<tr>
+<td><strong>GPU Firmware</strong></td>
+<td><code>start.elf</code></td>
+<td><code>start.elf</code></td>
+<td><code>start.elf</code></td>
+<td><code>pieeprom.bin</code> + <code>start.elf</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key takeaways for CM3/3+:</strong></p>
+<ul>
+<li>Unlike Pi 2, BCM2837 supports 64-bit operation.</li>
+<li>Unlike Pi 4, CM3/3+ lacks a programmable SPI EEPROM for the bootloader; the firmware lives on the boot partition.</li>
+<li>USB and network boot require OTP configuration, unlike Pi 4 where these are enabled by default.</li>
+<li>The CM3/3+ defaults to onboard eMMC, unlike the Pi 3B+ which defaults to SD card.</li>
+</ul>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following areas are either undocumented, ambiguously documented, or require community experimentation:</p>
+<ol>
+<li><strong>GPIO Boot Mode on BCM2837:</strong> The official "GPIO boot mode" documentation</li>
+</ol>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
