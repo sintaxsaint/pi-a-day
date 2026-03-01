@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Raspberry Pi Zero 2 W (BCM2837B0) -- Bootloader & Boot Process -- pi-a-day</title>
+  <style>:root{--bg:#0f1117;--surface:#1a1d27;--border:#2d3748;--text:#e2e8f0;
+--muted:#94a3b8;--accent:#c84b31;--code-bg:#0d1117;--link:#63b3ed}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.75;font-size:16px}
+a{color:var(--link);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--surface);border-bottom:2px solid var(--accent);padding:2rem 1rem}
+header nav{max-width:860px;margin:0 auto .75rem;font-size:.9rem;color:var(--muted)}
+header nav a{color:var(--muted)}
+.inner{max-width:860px;margin:0 auto}
+header h1{font-size:1.9rem;color:#fff;margin-bottom:.3rem}
+header .meta{color:var(--muted);font-size:.85rem}
+header .meta a{color:var(--muted)}
+main{max-width:860px;margin:2.5rem auto;padding:0 1rem}
+h1,h2,h3,h4{color:#fff;line-height:1.3}
+h2{font-size:1.35rem;border-bottom:1px solid var(--border);
+  padding-bottom:.4rem;margin:2.25rem 0 .75rem}
+h3{font-size:1.1rem;color:#cbd5e0;margin:1.75rem 0 .5rem}
+h4{font-size:1rem;color:#94a3b8;margin:1.25rem 0 .4rem}
+p{margin:.75rem 0}
+ul,ol{margin:.75rem 0 .75rem 1.6rem}
+li{margin:.3rem 0}
+code{background:var(--code-bg);border:1px solid var(--border);border-radius:4px;
+  padding:.15em .4em;font-family:"Fira Code","Cascadia Code",Consolas,monospace;font-size:.87em}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1.1rem;overflow-x:auto;margin:1.25rem 0}
+pre code{border:none;padding:0;background:none}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;
+  margin:1rem 0;color:var(--muted);font-style:italic}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.9rem}
+th,td{padding:.6rem .9rem;text-align:left;border:1px solid var(--border)}
+th{background:var(--surface);color:var(--muted);font-weight:600}
+.sources{background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:1rem 1.25rem;margin:0 0 2rem}
+.sources h3{margin:0 0 .5rem;font-size:.85rem;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.sources ul{margin:.4rem 0 0 1.25rem}
+.sources li{margin:.2rem 0;font-size:.9rem}
+footer{background:var(--surface);border-top:1px solid var(--border);
+  padding:1.5rem 1rem;text-align:center;color:var(--muted);font-size:.85rem;margin-top:4rem}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:1.25rem;margin:2rem 0}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:1.25rem;transition:border-color .2s}
+.card:hover{border-color:var(--accent)}
+.card h2{border:none;font-size:1rem;margin:0 0 .3rem}
+.card .soc{color:#64748b;font-size:.78rem;font-family:Consolas,monospace;margin-bottom:.3rem}
+.card .sub{color:var(--muted);font-size:.85rem}
+.card .date{color:#475569;font-size:.78rem;margin-top:.3rem}
+.card a.btn{display:inline-block;margin-top:1rem;padding:.35rem .8rem;
+  background:var(--accent);color:#fff;border-radius:6px;font-size:.85rem;font-weight:600}
+.card a.btn:hover{opacity:.85;text-decoration:none}
+.section-label{color:var(--muted);font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.08em;margin:2rem 0 .75rem;padding-bottom:.3rem;
+  border-bottom:1px solid var(--border)}
+.empty{color:var(--muted);text-align:center;padding:3rem 1rem;font-size:1.1rem}
+</style>
+</head>
+<body>
+<header>
+  <nav><a href="index.html">&larr; All Reports</a></nav>
+  <div class="inner">
+    <h1>Raspberry Pi Zero 2 W (BCM2837B0) -- Bootloader & Boot Process</h1>
+    <p class="meta">Generated 2026-03-01 &nbsp;&middot;&nbsp; <a href="pizero2-report.md">Download .md</a></p>
+  </div>
+</header>
+<main>
+  <div class="sources">
+    <h3>Sources</h3>
+    <ul>
+      <li><a href="https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#pi-3-only-bootcode-bin-usb-boot" target="_blank" rel="noopener">Pi 3 USB / Network Boot - Official Docs</a></li>
+      <li><a href="https://github.com/raspberrypi/usbboot" target="_blank" rel="noopener">raspberrypi/usbboot - GitHub (BCM2837 USB boot ROM)</a></li>
+      <li><a href="https://elinux.org/RPiconfig" target="_blank" rel="noopener">RPiconfig boot options - eLinux Wiki</a></li>
+      <li><a href="https://forums.raspberrypi.com/viewtopic.php?t=174648" target="_blank" rel="noopener">BCM2837 64-bit boot thread - Raspberry Pi Forums</a></li>
+    </ul>
+  </div>
+<h1 id="raspberry-pi-zero-2-w-bcm2837b0-bootloader-boot-process-community-documentation">Raspberry Pi Zero 2 W (BCM2837B0) — Bootloader &amp; Boot Process: Community Documentation</h1>
+<p><strong>Version 1.0 | Community-Maintained Technical Report</strong></p>
+<hr />
+<h2 id="1-overview-of-the-bcm2837b0-boot-sequence">1. Overview of the BCM2837B0 Boot Sequence</h2>
+<p>The Raspberry Pi Zero 2 W uses the <strong>BCM2837B0</strong> SoC, which is a variant of the BCM2837 (originally introduced in the Raspberry Pi 3B). This processor contains a <strong>boot ROM</strong> embedded in the silicon — this is the first code that executes when power is applied, and it cannot be modified.</p>
+<h3 id="step-by-step-boot-flow">Step-by-Step Boot Flow</h3>
+<ol>
+<li>
+<p><strong>Power-On / Reset</strong>
+   - The VideoCore IV GPU core powers on first (this is a characteristic of all BCM283x-family SoCs)
+   - The ARM CPU remains held in reset while the GPU executes its boot ROM</p>
+</li>
+<li>
+<p><strong>ROM Boot Loader (Stage 1)</strong>
+   - The GPU boot ROM scans for a valid boot medium
+   - Boot order is fixed in ROM: <strong>SD card (first) → USB (second)</strong>
+   - The ROM looks for a FAT filesystem on the SD card (or USB mass storage device)
+   - If no bootable device is found, the boot ROM enters USB device mode (waiting for <code>rpiboot</code>)</p>
+</li>
+<li>
+<p><strong>Bootloader Firmware Loading (Stage 2)</strong>
+   - Once a FAT partition is found, the ROM loads <code>bootcode.bin</code> into L2 cache
+   - <code>bootcode.bin</code> is the <strong>secondary bootloader</strong> — it initializes SDRAM and loads the main firmware
+   - On the Zero 2 W, <code>bootcode.bin</code> is required on the SD card (unlike Pi 4 which has internal EEPROM)</p>
+</li>
+<li>
+<p><strong>VideoCore Firmware (Stage 3)</strong>
+   - <code>start.elf</code> (or <code>start4.elf</code> for newer firmware) is loaded — this is the VideoCore firmware
+   - This firmware reads <code>config.txt</code>, <code>cmdline.txt</code>, and any device tree overlays
+   - The firmware also handles GPU-side initialization (clock speeds, memory split)</p>
+</li>
+<li>
+<p><strong>Kernel Handoff</strong>
+   - For Linux: the ARM CPU is released from reset; the kernel (<code>kernel.img</code> or <code>kernel8.img</code> for 64-bit) is loaded to the specified memory address
+   - The kernel command line from <code>cmdline.txt</code> is passed to the kernel
+   - Device tree blobs (<code>.dtb</code>) or device tree overlays (<code>.dtbo</code>) are passed for hardware description</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> The Zero 2 W does <strong>not</strong> have a bootloader EEPROM (unlike the Pi 4, Pi 400, Compute Module 4/5). All firmware files must reside on the bootable SD card or USB drive.</p>
+</blockquote>
+<hr />
+<h2 id="2-boot-firmware-storage">2. Boot Firmware &amp; Storage</h2>
+<h3 id="firmware-files-required-on-boot-media">Firmware Files Required on Boot Media</h3>
+<p>For the Zero 2 W to boot, the following files must be present on a FAT-formatted partition (typically the first partition on the SD card):</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bootcode.bin</code></td>
+<td>Secondary bootloader — initializes SDRAM, loads <code>start.elf</code></td>
+</tr>
+<tr>
+<td><code>start.elf</code></td>
+<td>VideoCore firmware — boots the ARM CPU, reads <code>config.txt</code></td>
+</tr>
+<tr>
+<td><code>config.txt</code></td>
+<td>Configuration file for GPU and boot settings</td>
+</tr>
+<tr>
+<td><code>cmdline.txt</code></td>
+<td>Kernel command line arguments</td>
+</tr>
+<tr>
+<td><code>kernel.img</code></td>
+<td>32-bit ARM kernel (ARMv7)</td>
+</tr>
+<tr>
+<td><code>kernel8.img</code></td>
+<td>64-bit ARM kernel (ARMv8, if using 64-bit OS)</td>
+</tr>
+<tr>
+<td><code>*.dtb</code></td>
+<td>Device tree blobs for board configuration</td>
+</tr>
+<tr>
+<td><code>*.dtbo</code></td>
+<td>Device tree overlays</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Source:</strong> Raspberry Pi Documentation — <em>boot folder contents</em></p>
+</blockquote>
+<h3 id="eeprom-status">EEPROM Status</h3>
+<p>The Zero 2 W does <strong>not</strong> have a bootloader EEPROM. This distinguishes it from the Raspberry Pi 4 series and Compute Module 4/5, which store the bootloader in SPI flash. All boot firmware must be provided externally via SD card or USB.</p>
+<h3 id="firmware-source">Firmware Source</h3>
+<p>The official firmware is maintained in the Raspberry Pi GitHub repository:</p>
+<ul>
+<li><strong>Repository:</strong> <code>raspberrypi/firmware</code> (boot folder)</li>
+<li><strong>URL:</strong> https://github.com/raspberrypi/firmware/tree/master/boot</li>
+</ul>
+<p>Community members typically copy these files from a Raspberry Pi OS image or the official firmware repository.</p>
+<hr />
+<h2 id="3-boot-modes-supported">3. Boot Modes Supported</h2>
+<p>The BCM2837B0 supports multiple boot modes. The primary mode is determined by the contents of the boot media and the OTP (One-Time Programmable) memory configuration.</p>
+<h3 id="31-sd-card-boot-default">3.1 SD Card Boot (Default)</h3>
+<ul>
+<li><strong>Primary boot device</strong> — the ROM always attempts SD card boot first</li>
+<li>Requires a FAT-formatted partition with the firmware files listed above</li>
+<li>Supports both <strong>SDIO</strong> and <strong>SPI-mode</strong> SD card interfaces (the Zero 2 W uses the standard SD interface)</li>
+</ul>
+<h3 id="32-usb-boot">3.2 USB Boot</h3>
+<p>The Zero 2 W supports booting from <strong>USB mass storage devices</strong> (flash drives, hard drives, SSDs). This requires:</p>
+<ol>
+<li><strong>USB boot mode must be enabled</strong> — the OTP bit for USB boot must be set</li>
+<li>On a new Zero 2 W, USB boot is <strong>not enabled by default</strong> — you must enable it via <code>program_usb_boot_mode=1</code> in <code>config.txt</code> and reboot once</li>
+</ol>
+<blockquote>
+<p><strong>Note:</strong> The official documentation states that on Raspberry Pi 3-series devices, you must enable USB boot mode via the OTP. The Zero 2 W (which uses the same SoC family) likely inherits this behavior, though community testing confirms USB boot works on most units.</p>
+</blockquote>
+<p><strong>Procedure to enable USB boot:</strong></p>
+<pre><code class="language-bash"># Add to config.txt on an SD card, boot once, then remove the line
+program_usb_boot_mode=1
+</code></pre>
+<p>After enabling, the boot order becomes:</p>
+<ol>
+<li>SD card (if bootable)</li>
+<li>USB device (if no SD card boot)</li>
+</ol>
+<h3 id="33-usb-device-boot-rpiboot">3.3 USB Device Boot (rpiboot)</h3>
+<p>The Zero 2 W supports being booted via <strong>USB device mode</strong> using the <code>rpiboot</code> tool. This is the method used for flashing eMMC on Compute Modules, but it also works on the Zero 2 W.</p>
+<ul>
+<li>The device enumerates as a <strong>USB mass storage device</strong> (or in newer firmware, as a composite device with serial console)</li>
+<li>The host computer runs <code>rpiboot</code> which serves a boot image over USB</li>
+<li>This allows provisioning without an SD card</li>
+</ul>
+<blockquote>
+<p><strong>Source:</strong> GitHub — <em>raspberrypi/usbboot</em> lists Zero 2 W as compatible with the <strong>mass-storage-gadget</strong> firmware, which runs a Linux initramfs enabling USB device boot</p>
+</blockquote>
+<h3 id="34-network-pxe-boot">3.4 Network / PXE Boot</h3>
+<p><strong>Network boot is not natively supported</strong> on the Zero 2 W in the same way it is on Pi 3B+ and Pi 4. The BCM2837B0 ROM does not include a built-in PXE client. However:</p>
+<ul>
+<li>Network boot can be achieved by booting via USB and then loading network drivers from the initramfs</li>
+<li>Some community projects have demonstrated network boot by using the USB gadget interface with DHCP/TFTP</li>
+<li>The official network boot documentation focuses on Pi 3B+ and newer — the Zero 2 W is not listed</li>
+</ul>
+<blockquote>
+<p><strong>Community Note:</strong> Network boot on the Zero 2 W requires additional software and is not a plug-and-play feature.</p>
+</blockquote>
+<h3 id="35-boot-mode-summary-table">3.5 Boot Mode Summary Table</h3>
+<table>
+<thead>
+<tr>
+<th>Boot Mode</th>
+<th>Supported?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SD Card</td>
+<td>✅ Yes (default)</td>
+<td>Requires FAT partition with firmware files</td>
+</tr>
+<tr>
+<td>USB Mass Storage</td>
+<td>✅ Yes (with OTP enable)</td>
+<td>Must set <code>program_usb_boot_mode=1</code></td>
+</tr>
+<tr>
+<td>USB Device (rpiboot)</td>
+<td>✅ Yes</td>
+<td>Uses mass-storage-gadget firmware</td>
+</tr>
+<tr>
+<td>Network / PXE</td>
+<td>⚠️ Limited</td>
+<td>Requires custom initramfs; not native</td>
+</tr>
+<tr>
+<td>GPIO Boot</td>
+<td>❌ No</td>
+<td>Not available on Zero 2 W</td>
+</tr>
+<tr>
+<td>NVMe Boot</td>
+<td>❌ No</td>
+<td>No PCIe on Zero 2 W</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-uart-serial-console">4. UART / Serial Console</h2>
+<p>The Zero 2 W provides access to the <strong>primary UART</strong> (UART0) on the 40-pin GPIO header. This is the default console for boot messages and Linux serial console.</p>
+<h3 id="pinout">Pinout</h3>
+<table>
+<thead>
+<tr>
+<th>Pin</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPIO 14</td>
+<td>UART0 TX (Alt 0)</td>
+</tr>
+<tr>
+<td>GPIO 15</td>
+<td>UART0 RX (Alt 0)</td>
+</tr>
+<tr>
+<td>Pin 6</td>
+<td>GND</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Voltage:</strong> 3.3V (TTL level) — do not connect directly to RS-232 without a level shifter</li>
+<li><strong>Default baud rate:</strong> 115200 baud, 8N1</li>
+</ul>
+<h3 id="enabling-serial-console">Enabling Serial Console</h3>
+<ol>
+<li>
+<p><strong>In <code>cmdline.txt</code>:</strong>
+   <code>console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfs=ext4 fsck.repair=yes rootwait</code></p>
+</li>
+<li>
+<p><strong>In <code>config.txt</code>:</strong>
+   - No special configuration needed for default UART
+   - To disable serial console: <code>enable_uart=0</code></p>
+</li>
+<li>
+<p><strong>Device name:</strong> On Raspberry Pi OS, the primary UART is mapped to <code>serial0</code>, which typically points to <code>/dev/ttyS0</code> (or <code>/dev/ttyAMA0</code> on older images)</p>
+</li>
+</ol>
+<h3 id="boot-messages-via-uart">Boot Messages via UART</h3>
+<p>The GPU firmware (<code>start.elf</code>) outputs boot debug messages to the UART <strong>before</strong> the ARM kernel starts. This includes:</p>
+<ul>
+<li>Memory initialization messages</li>
+<li>Loading of firmware files</li>
+<li>Device tree information</li>
+</ul>
+<p>If no output is seen on the UART, common causes include:</p>
+<ul>
+<li>Incorrect baud rate</li>
+<li>Missing ground connection</li>
+<li><code>enable_uart=0</code> set in <code>config.txt</code></li>
+<li>USB-to-TTL adapter issues (particularly with cheap clones)</li>
+</ul>
+<h3 id="quirks-and-community-observations">quirks and Community Observations</h3>
+<ul>
+<li>
+<p><strong>No mini-UART vs PL011:</strong> The Zero 2 W uses the <strong>PL011</strong> UART (not the mini-UART found on Zero and Zero W). This is important because the mini-UART has a divided clock that makes baud rate generation less accurate. The PL011 on Zero 2 W is more reliable for high-speed serial communication.</p>
+</li>
+<li>
+<p><strong>Serial console on USB:</strong> When using the <code>mass-storage-gadget</code> USB boot mode (via <code>rpiboot</code>), the device also creates a <strong>USB CDC-ACM serial interface</strong>. This provides a second serial console over USB in addition to the hardware UART. Both are available in the Linux initramfs environment.</p>
+</li>
+</ul>
+<blockquote>
+<p><strong>Source:</strong> GitHub — <em>raspberrypi/usbboot</em> — "Because it runs Linux, it also provides a console login via both the hardware UART and the USB CDC-UART interfaces."</p>
+</blockquote>
+<hr />
+<h2 id="5-bare-metal-and-os-bring-up-notes">5. Bare-Metal and OS Bring-Up Notes</h2>
+<h3 id="51-bare-metal-development">5.1 Bare-Metal Development</h3>
+<p>For bare-metal programming on the Zero 2 W (BCM2837B0), developers interact with:</p>
+<ul>
+<li><strong>VideoCore mailbox interface</strong> — for communication between ARM and GPU</li>
+<li><strong>ARM local peripherals</strong> — timer, interrupt controller</li>
+<li><strong>GPU memory</strong> — firmware loads at address <code>0x00000000</code> (ARM's view of GPU memory)</li>
+<li><strong>SDRAM</strong> — initialized by <code>bootcode.bin</code> and <code>start.elf</code></li>
+</ul>
+<p>Popular bare-metal frameworks and tutorials:</p>
+<ul>
+<li><strong>Circle</strong> — C++ bare-metal framework supporting Raspberry Pi 1 through 3 (including BCM2837)</li>
+<li>https://github.com/rsta2/circle</li>
+<li><strong>bcm2837</strong> — community bare-metal examples for the Raspberry Pi 3 series (BCM2837)</li>
+<li><strong>Raspberry Pi bare metal forum</strong> — active community discussions</li>
+</ul>
+<blockquote>
+<p><strong>Community Note:</strong> While Circle supports the Pi 3 family, specific Zero 2 W (BCM2837B0) compatibility should be verified. The B0 variant is a die shrink of the original BCM2837 with improved power management, but the peripheral map is largely identical.</p>
+</blockquote>
+<h3 id="52-u-boot">5.2 U-Boot</h3>
+<p>U-Boot can be used as a first-stage bootloader on the Zero 2 W. This is useful for:</p>
+<ul>
+<li>Network boot via TFTP</li>
+<li>Loading kernels from ext4 filesystems</li>
+<li>More flexible boot scripts</li>
+</ul>
+<p>To use U-Boot:</p>
+<ol>
+<li>Compile U-Boot for <code>rpi_3</code> or <code>bcm2837</code> (the Zero 2 W uses the same device tree as Pi 3)</li>
+<li>Rename to <code>boot.scr.uimg</code> or load via <code>bootcmd</code></li>
+<li>Place on SD card alongside firmware files</li>
+</ol>
+<blockquote>
+<p><strong>Community Note:</strong> Official U-Boot support for BCM2837 is included in mainline U-Boot. The Zero 2 W should work with the <code>rpi_3_defconfig</code>, but this is community-verified, not officially documented.</p>
+</blockquote>
+<h3 id="53-64-bit-os-support">5.3 64-bit OS Support</h3>
+<p>The BCM2837B0 is a <strong>64-bit capable</strong> ARMv8 processor (Cortex-A53). The Zero 2 W can boot:</p>
+<ul>
+<li><strong>32-bit kernels</strong> — <code>kernel.img</code> (ARMv7)</li>
+<li><strong>64-bit kernels</strong> — <code>kernel8.img</code> (ARMv8, ARM64)</li>
+</ul>
+<p>To boot a 64-bit OS (e.g., 64-bit Raspberry Pi OS):</p>
+<ul>
+<li>Ensure <code>kernel8.img</code> is present on the boot partition</li>
+<li>The firmware automatically detects and loads the 64-bit kernel if present</li>
+</ul>
+<blockquote>
+<p><strong>Community Note:</strong> Raspberry Pi OS 64-bit is officially supported on Zero 2 W. Some community reports indicate that 64-bit images may have slightly different boot behavior, but firmware files are identical.</p>
+</blockquote>
+<h3 id="54-boot-speed-and-optimization">5.4 Boot Speed and Optimization</h3>
+<ul>
+<li><strong>SD card class:</strong> Use Class 10 or UHS-I cards for optimal boot times</li>
+<li><strong>USB boot:</strong> USB 2.0 is the limiting factor; USB 3.0 devices work but are limited to USB 2.0 speeds</li>
+<li><strong>Boot delay:</strong> The <code>boot_delay</code> option in <code>config.txt</code> adds a wait period before loading the kernel (useful for recovery)</li>
+</ul>
+<hr />
+<h2 id="6-key-differences-from-neighbouring-pi-generations">6. Key Differences from Neighbouring Pi Generations</h2>
+<p>The Zero 2 W sits in the product line between the original Zero/W and the Raspberry Pi 4 series. Below are the most relevant distinctions:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Pi Zero / Zero W (BCM2835)</th>
+<th><strong>Zero 2 W (BCM2837B0)</strong></th>
+<th>Pi 3B (BCM2837)</th>
+<th>Pi 4 (BCM2711)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Architecture</strong></td>
+<td>ARMv6 (ARM11)</td>
+<td>ARMv8 (Cortex-A53)</td>
+<td>ARMv8 (Cortex-A53)</td>
+<td>ARMv8 (Cortex-A72)</td>
+</tr>
+<tr>
+<td><strong>CPU Cores</strong></td>
+<td>1</td>
+<td>4</td>
+<td>4</td>
+<td>4 (Pi 4B)</td>
+</tr>
+<tr>
+<td><strong>Clock Speed</strong></td>
+<td>1 GHz</td>
+<td>1 GHz</td>
+<td>1.2 GHz</td>
+<td>1.5 GHz (Pi 4)</td>
+</tr>
+<tr>
+<td><strong>Boot EEPROM</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Boot Firmware Location</strong></td>
+<td>SD card / USB</td>
+<td>SD card / USB</td>
+<td>SD card / USB</td>
+<td>EEPROM + SD card</td>
+</tr>
+<tr>
+<td><strong>Default Boot Device</strong></td>
+<td>SD card</td>
+<td>SD card</td>
+<td>SD card</td>
+<td>EEPROM</td>
+</tr>
+<tr>
+<td><strong>USB Boot</strong></td>
+<td>⚠️ Limited (requires special firmware)</td>
+<td>✅ Yes (with OTP)</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>Network Boot</strong></td>
+<td>❌ No</td>
+<td>⚠️ Limited</td>
+<td>✅ Yes (Pi 3B+)</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>PCIe</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+</tr>
+<tr>
+<td><strong>GPIO Boot Mode</strong></td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>❌ No</td>
+<td>✅ Yes (Pi 4)</td>
+</tr>
+<tr>
+<td><strong>Mini-UART</strong></td>
+<td>Yes</td>
+<td>No (PL011)</td>
+<td>No (PL011)</td>
+<td>No (PL011)</td>
+</tr>
+<tr>
+<td><strong>RAM</strong></td>
+<td>512 MB</td>
+<td>512 MB LPDDR2</td>
+<td>1 GB LPDDR2</td>
+<td>1–8 GB LPDDR4</td>
+</tr>
+<tr>
+<td><strong>Official 64-bit OS</strong></td>
+<td>❌ No</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+<td>✅ Yes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-takeaways-for-zero-2-w">Key Takeaways for Zero 2 W</h3>
+<ol>
+<li><strong>Like Pi 3:</strong> Uses the same ARM architecture (BCM2837 family) and supports 64-bit; shares the PL011 UART</li>
+<li><strong>Like original Zero:</strong> Lacks EEPROM, requires SD card or USB for firmware; compact form factor</li>
+<li><strong>Unlike Pi 4:</strong> Does not support network boot natively, no GPIO boot mode, no PCIe</li>
+</ol>
+<hr />
+<h2 id="7-open-questions-areas-without-official-documentation">7. Open Questions / Areas Without Official Documentation</h2>
+<p>The following areas lack official Raspberry Pi documentation or have conflicting/incomplete community information:</p>
+<h3 id="71-usb-boot-otp-status">7.1 USB Boot OTP Status</h3>
+<p><strong>Question:</strong> Is the USB boot mode OTP bit pre-programmed on the Zero 2 W, or must users explicitly enable it?</p>
+<ul>
+<li>The Pi 3 series requires explicit OTP programming via <code>program_usb_boot_mode=1</code></li>
+<li>Community reports suggest most Zero 2 W units boot USB devices without this step, but this is not officially confirmed</li>
+<li><strong>Community behavior:</strong> Most Zero 2 W units appear to boot USB devices out of the box, but</li>
+</ul>
+</main>
+<footer>
+  AI-generated from community sources using
+  <a href="https://huggingface.co/MiniMaxAI/MiniMax-M2.5">MiniMax M2.5</a>
+  via <a href="https://github.com/sintaxsaint/pi-a-day">pi-a-day</a>
+</footer>
+</body>
+</html>
