@@ -717,7 +717,7 @@ def main() -> None:
         elif not a.startswith("--"):
             api_key_arg = a
 
-    api_key = os.environ.get("HF_API_KEY") or api_key_arg or "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"
+    api_key = os.environ.get("HF_API_KEY") or api_key_arg or "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"
 
     model = os.environ.get("HF_MODEL", DEFAULT_MODEL)
     state = load_state()
